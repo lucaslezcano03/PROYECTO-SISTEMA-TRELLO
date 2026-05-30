@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>Mis tableros</h2>
+
+    {% if tableros %}
+        <div class="lista-tableros">
+            {% for tablero in tableros %}
+                <a class="tarjeta-tablero" href="{% url 'boards:board_detail' tablero.id %}">
+                    <h3>{{ tablero.nombre }}</h3>
+                    <p>{{ tablero.descripcion|default:"Sin descripción" }}</p>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No tenés tableros cargados todavía.</p>
+        <p>Podés crear uno desde el panel admin.</p>
+    {% endif %}
+</section>
+
+{% endblock %}
