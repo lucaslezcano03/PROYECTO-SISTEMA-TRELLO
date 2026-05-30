@@ -14,7 +14,10 @@
 
             {% for ticket in columna.tickets.all %}
                 <div class="ticket">
-                    <h4>{{ ticket.titulo }}</h4>
+                    <h4>
+                        <a href="{% url 'tickets:ticket_detail' ticket.id %}">{{ ticket.titulo }}
+                        </a>
+                    </h4>
                     <p><strong>Cliente:</strong> {{ ticket.cliente }}</p>
                     <p><strong>Prioridad:</strong> {{ ticket.get_prioridad_display }}</p>
 

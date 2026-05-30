@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>{{ ticket.titulo }}</h2>
+
+    <p><strong>Cliente:</strong> {{ ticket.cliente }}</p>
+    <p><strong>Descripción:</strong> {{ ticket.descripcion }}</p>
+    <p><strong>Tablero:</strong> {{ ticket.tablero.nombre }}</p>
+    <p><strong>Estado:</strong> {{ ticket.columna.nombre }}</p>
+    <p><strong>Prioridad:</strong> {{ ticket.get_prioridad_display }}</p>
+
+    {% if ticket.asignado_a %}
+        <p><strong>Asignado a:</strong> {{ ticket.asignado_a.username }}</p>
+    {% else %}
+        <p><strong>Asignado a:</strong> Sin asignar</p>
+    {% endif %}
+</section>
+
+<section class="bloque">
+    <h3>Seguimiento del ticket</h3>
+
+    {% for comentario in ticket.comentarios.all %}
+        <div class="comentario">
+            <p>{{ comentario.mensaje }}</p>
+            <small>
+                Registrado por {{ comentario.usuario.username }}
+                - {{ comentario.fecha_creacion }}
+            </small>
+        </div>
+    {% empty %}
+        <p>Este ticket todavía no tiene comentarios.</p>
+    {% endfor %}
+</section>
+
+<section class="bloque">
+    <h3>Agregar seguimiento</h3>
+
+    <form method="post" class="formulario">
+        {% csrf_token %}
+
+        {{ form.as_p }}
+
+        <button type="submit">Agregar comentario</button>
+    </form>
+</section>
+
+{% endblock %}
