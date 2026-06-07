@@ -4,17 +4,35 @@ from .models import Ticket, TicketComment
 
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
+    # Columnas visibles en el listado de tickets.
     list_display = (
         'titulo',
-        'cliente',
-        'tablero',
+        'numero_contrato',
+        'id_cliente',
+        'contacto_principal',
+        'tipo_interaccion',
         'columna',
         'asignado_a',
         'prioridad',
         'fecha_creacion',
     )
-    list_filter = ('prioridad', 'columna', 'tablero')
-    search_fields = ('titulo', 'cliente', 'descripcion')
+
+    # Filtros rápidos para buscar tickets según estado, prioridad o técnico.
+    list_filter = (
+        'tipo_interaccion',
+        'prioridad',
+        'columna',
+        'asignado_a',
+    )
+
+    # Campos que se pueden buscar desde el admin.
+    search_fields = (
+        'titulo',
+        'numero_contrato',
+        'id_cliente',
+        'contacto_principal',
+        'detalle_reclamo',
+    )
 
 
 @admin.register(TicketComment)
