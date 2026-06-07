@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>Crear nuevo ticket técnico</h2>
+
+    <form method="post" class="formulario">
+        {% csrf_token %}
+
+        {{ form.as_p }}
+
+        <button type="submit">Guardar ticket</button>
+    </form>
+</section>
+
+{% endblock %}
