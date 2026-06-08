@@ -141,3 +141,57 @@ body {
 .comentario p {
     margin-top: 0;
 }
+
+.formulario-reclamo {
+    max-width: 520px;
+    margin: 30px auto;
+    background: white;
+    padding: 28px;
+    border-radius: 14px;
+}
+
+.formulario-reclamo h2 {
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+}
+
+.campo {
+    margin-bottom: 16px;
+}
+
+.campo label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+}
+
+.formulario-reclamo button {
+    width: 100%;
+    padding: 12px;
+    background: #0891b2;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.formulario-reclamo button:hover {
+    background: #0e7490;
+}
+
+.errorlist {
+    color: #dc2626;
+    margin: 6px 0 0 0;
+    padding-left: 18px;
+}
