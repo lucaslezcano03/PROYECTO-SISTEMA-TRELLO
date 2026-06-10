@@ -40,7 +40,7 @@
 </section>
 
 <script>
-    // Obtiene el token CSRF de las cookies para enviar peticiones POST seguras.
+    // Obtiene el token CSRF para que Django acepte la petición POST.
     function obtenerCookie(nombre) {
         let valorCookie = null;
 
@@ -62,7 +62,7 @@
 
     const csrfToken = obtenerCookie('csrftoken');
 
-    // Guarda temporalmente el ticket que se está arrastrando.
+    // Guarda el ticket que el usuario está arrastrando.
     let ticketArrastrado = null;
 
     document.querySelectorAll('.ticket-kanban').forEach(ticket => {
@@ -95,16 +95,28 @@
                 },
                 body: datos
             })
-            .then(response => response.json())
+            .then(response => {
+                // Si Django responde con error, se muestra el detalle real en consola.
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Error al mover el ticket.');
+                    });
+                }
+
+                return response.json();
+            })
             .then(data => {
                 if (data.ok) {
+                    // Si el backend confirmó el cambio, se mueve visualmente la tarjeta.
                     zonaTickets.appendChild(ticketArrastrado);
+                    ticketArrastrado = null;
                 } else {
-                    alert('No se pudo mover el ticket.');
+                    alert(data.error || 'No se pudo mover el ticket.');
                 }
             })
-            .catch(() => {
-                alert('Error al mover el ticket.');
+            .catch(error => {
+                console.error('Detalle del error:', error);
+                alert('No se pudo mover el ticket. Revisá la consola o la terminal.');
             });
         });
     });

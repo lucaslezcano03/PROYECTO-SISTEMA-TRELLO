@@ -13,6 +13,8 @@ from .forms import GestionTicketForm, ReclamoClienteForm, TicketCommentForm
 from .models import Ticket
 from .services import buscar_tecnico_disponible, obtener_tablero_reclamos
 
+from django.db import transaction
+
 
 @login_required
 def ticket_create(request):
@@ -145,35 +147,66 @@ def gestion_reclamos(request):
 @require_POST
 @roles_permitidos('tecnico', 'supervisor', 'admin')
 def mover_ticket(request, ticket_id):
-    # Esta vista recibe el ticket movido por drag & drop.
+    # Esta vista funciona como una pequeña API para mover tickets por drag & drop.
     ticket = get_object_or_404(Ticket, id=ticket_id)
 
     columna_id = request.POST.get('columna_id')
 
+    # Si no llega el ID de la columna, se responde con error en formato JSON.
     if not columna_id:
         return JsonResponse({
             'ok': False,
-            'error': 'No se recibió la columna.'
+            'error': 'No se recibió la columna destino.'
         }, status=400)
 
     nueva_columna = get_object_or_404(BoardColumn, id=columna_id)
 
+    # Evita mover un ticket a una columna que pertenece a otro tablero.
+    if nueva_columna.tablero_id != ticket.tablero_id:
+        return JsonResponse({
+            'ok': False,
+            'error': 'La columna no pertenece al tablero del ticket.'
+        }, status=400)
+
     columna_anterior = ticket.columna
-    ticket.columna = nueva_columna
-    ticket.save()
 
-    # Guarda un seguimiento automático del cambio de estado.
-    ticket.comentarios.create(
-        usuario=request.user,
-        mensaje=f'Ticket movido de {columna_anterior.nombre} a {nueva_columna.nombre}.'
-    )
+    # Si se suelta en la misma columna, no se hace ningún cambio.
+    if columna_anterior.id == nueva_columna.id:
+        return JsonResponse({
+            'ok': True,
+            'mensaje': 'El ticket ya estaba en esa columna.',
+            'nuevo_estado': nueva_columna.nombre
+        })
 
-    crear_notificacion(
-        ticket.asignado_a,
-        f'El ticket {ticket.titulo} fue movido a {nueva_columna.nombre}.'
-    )
+    try:
+        with transaction.atomic():
+            # Actualiza el estado del ticket.
+            ticket.columna = nueva_columna
+            ticket.save()
 
-    return JsonResponse({
-        'ok': True,
-        'nuevo_estado': nueva_columna.nombre
-    })
+            # Registra un comentario automático del cambio de estado.
+            ticket.comentarios.create(
+                usuario=request.user,
+                mensaje=f'Ticket movido de {columna_anterior.nombre} a {nueva_columna.nombre}.'
+            )
+
+        # Intenta notificar al técnico asignado sin romper el movimiento si falla.
+        try:
+            crear_notificacion(
+                ticket.asignado_a,
+                f'El ticket {ticket.titulo} fue movido a {nueva_columna.nombre}.'
+            )
+        except Exception:
+            pass
+
+        return JsonResponse({
+            'ok': True,
+            'ticket_id': ticket.id,
+            'nuevo_estado': nueva_columna.nombre
+        })
+
+    except Exception as error:
+        return JsonResponse({
+            'ok': False,
+            'error': str(error)
+        }, status=500)
