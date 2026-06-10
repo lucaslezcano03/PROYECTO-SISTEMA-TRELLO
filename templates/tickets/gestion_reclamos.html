@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>{{ tablero.nombre }}</h2>
+    <p>Arrastrá los tickets entre columnas para cambiar su estado.</p>
+</section>
+
+<section class="tablero-kanban">
+    {% for columna in columnas %}
+        <div class="columna-kanban" data-columna-id="{{ columna.id }}">
+            <h3>{{ columna.nombre }}</h3>
+
+            <div class="zona-tickets">
+                {% for ticket in columna.tickets.all %}
+                    <div class="ticket-kanban" draggable="true" data-ticket-id="{{ ticket.id }}">
+                        <h4>
+                            <a href="{% url 'tickets:ticket_detail' ticket.id %}">
+                                {{ ticket.titulo }}
+                            </a>
+                        </h4>
+
+                        <p><strong>Contrato:</strong> {{ ticket.numero_contrato }}</p>
+                        <p><strong>ID Cliente:</strong> {{ ticket.id_cliente }}</p>
+                        <p><strong>Prioridad:</strong> {{ ticket.get_prioridad_display }}</p>
+
+                        {% if ticket.asignado_a %}
+                            <p><strong>Técnico:</strong> {{ ticket.asignado_a.username }}</p>
+                        {% else %}
+                            <p><strong>Técnico:</strong> Sin asignar</p>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <p class="texto-vacio">Sin tickets</p>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</section>
+
+<script>
+    // Obtiene el token CSRF de las cookies para enviar peticiones POST seguras.
+    function obtenerCookie(nombre) {
+        let valorCookie = null;
+
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+
+                if (cookie.substring(0, nombre.length + 1) === (nombre + '=')) {
+                    valorCookie = decodeURIComponent(cookie.substring(nombre.length + 1));
+                    break;
+                }
+            }
+        }
+
+        return valorCookie;
+    }
+
+    const csrfToken = obtenerCookie('csrftoken');
+
+    // Guarda temporalmente el ticket que se está arrastrando.
+    let ticketArrastrado = null;
+
+    document.querySelectorAll('.ticket-kanban').forEach(ticket => {
+        ticket.addEventListener('dragstart', () => {
+            ticketArrastrado = ticket;
+        });
+    });
+
+    document.querySelectorAll('.columna-kanban').forEach(columna => {
+        columna.addEventListener('dragover', event => {
+            event.preventDefault();
+        });
+
+        columna.addEventListener('drop', () => {
+            if (!ticketArrastrado) {
+                return;
+            }
+
+            const ticketId = ticketArrastrado.dataset.ticketId;
+            const columnaId = columna.dataset.columnaId;
+            const zonaTickets = columna.querySelector('.zona-tickets');
+
+            const datos = new FormData();
+            datos.append('columna_id', columnaId);
+
+            fetch(`/tickets/${ticketId}/mover/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                body: datos
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    zonaTickets.appendChild(ticketArrastrado);
+                } else {
+                    alert('No se pudo mover el ticket.');
+                }
+            })
+            .catch(() => {
+                alert('Error al mover el ticket.');
+            });
+        });
+    });
+</script>
+
+{% endblock %}  

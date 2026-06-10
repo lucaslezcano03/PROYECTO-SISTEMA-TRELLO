@@ -5,17 +5,27 @@
 <section class="bloque">
     <h2>{{ ticket.titulo }}</h2>
 
-    <p><strong>Cliente:</strong> {{ ticket.cliente }}</p>
-    <p><strong>Descripción:</strong> {{ ticket.descripcion }}</p>
-    <p><strong>Tablero:</strong> {{ ticket.tablero.nombre }}</p>
-    <p><strong>Estado:</strong> {{ ticket.columna.nombre }}</p>
-    <p><strong>Prioridad:</strong> {{ ticket.get_prioridad_display }}</p>
+    <p><strong>N° Contrato:</strong> {{ ticket.numero_contrato }}</p>
+    <p><strong>ID Cliente:</strong> {{ ticket.id_cliente }}</p>
+    <p><strong>Correo:</strong> {{ ticket.correo_cliente|default:"No cargado" }}</p>
+    <p><strong>Contacto principal:</strong> {{ ticket.contacto_principal }}</p>
+    <p><strong>Contacto secundario:</strong> {{ ticket.contacto_secundario|default:"No cargado" }}</p>
+    <p><strong>Interacción:</strong> {{ ticket.get_tipo_interaccion_display }}</p>
+    <p><strong>Comentario inicial:</strong> {{ ticket.detalle_reclamo }}</p>
+</section>
 
-    {% if ticket.asignado_a %}
-        <p><strong>Asignado a:</strong> {{ ticket.asignado_a.username }}</p>
-    {% else %}
-        <p><strong>Asignado a:</strong> Sin asignar</p>
-    {% endif %}
+<section class="bloque">
+    <h3>Gestión del ticket</h3>
+
+    <form method="post" class="formulario">
+        {% csrf_token %}
+
+        {{ gestion_form.as_p }}
+
+        <button type="submit" name="guardar_cambios">
+            Guardar cambios
+        </button>
+    </form>
 </section>
 
 <section class="bloque">
@@ -40,9 +50,11 @@
     <form method="post" class="formulario">
         {% csrf_token %}
 
-        {{ form.as_p }}
+        {{ comentario_form.as_p }}
 
-        <button type="submit">Agregar comentario</button>
+        <button type="submit" name="agregar_comentario">
+            Agregar comentario
+        </button>
     </form>
 </section>
 

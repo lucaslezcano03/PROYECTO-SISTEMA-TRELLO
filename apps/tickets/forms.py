@@ -1,13 +1,74 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core.validators import RegexValidator
 from django.db.models import Q
 
 from apps.boards.models import Board, BoardColumn
 from .models import Ticket, TicketComment
-from django.core.validators import RegexValidator
+
+
+# Valida que un campo acepte solamente números.
+solo_numeros = RegexValidator(
+    regex=r'^\d+$',
+    message='Este campo solo permite números.'
+)
+
+
+# Valida que el teléfono sea paraguayo y tenga el formato correcto.
+telefono_paraguay = RegexValidator(
+    regex=r'^09\d{8}$',
+    message='Ingrese un número paraguayo válido. Ejemplo: 0983325952.'
+)
+
+
+class ReclamoClienteForm(forms.Form):
+    # Formulario usado por el empleado para cargar reclamos de clientes.
+    numero_contrato = forms.CharField(
+        label='N° de Contrato',
+        max_length=20,
+        validators=[solo_numeros]
+    )
+
+    id_cliente = forms.CharField(
+        label='ID Cliente',
+        max_length=20,
+        validators=[solo_numeros]
+    )
+
+    correo_cliente = forms.EmailField(
+        label='Correo del cliente',
+        required=False
+    )
+
+    contacto_principal = forms.CharField(
+        label='N° de contacto principal',
+        max_length=10,
+        validators=[telefono_paraguay]
+    )
+
+    contacto_secundario = forms.CharField(
+        label='N° de contacto secundario',
+        max_length=30,
+        required=False,
+        validators=[solo_numeros]
+    )
+
+    tipo_interaccion = forms.ChoiceField(
+        label='Interacción',
+        choices=[
+            ('reclamo', 'Reclamo'),
+            ('consulta', 'Consulta'),
+        ]
+    )
+
+    comentario = forms.CharField(
+        label='Comentario',
+        widget=forms.Textarea(attrs={'rows': 5})
+    )
 
 
 class TicketForm(forms.ModelForm):
+    # Formulario anterior de tickets. Se mantiene por compatibilidad.
     class Meta:
         model = Ticket
         fields = [
@@ -23,6 +84,7 @@ class TicketForm(forms.ModelForm):
     def __init__(self, *args, usuario=None, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Si hay usuario, solo muestra tableros donde participa.
         if usuario:
             tableros_usuario = Board.objects.filter(
                 Q(creado_por=usuario) | Q(miembros=usuario)
@@ -44,6 +106,7 @@ class TicketForm(forms.ModelForm):
         tablero = datos.get('tablero')
         columna = datos.get('columna')
 
+        # Evita seleccionar una columna que pertenece a otro tablero.
         if tablero and columna and columna.tablero != tablero:
             raise forms.ValidationError(
                 'La columna seleccionada no pertenece al tablero indicado.'
@@ -53,69 +116,32 @@ class TicketForm(forms.ModelForm):
 
 
 class TicketCommentForm(forms.ModelForm):
+    # Formulario para agregar seguimientos o comentarios al ticket.
     class Meta:
         model = TicketComment
         fields = ['mensaje']
 
-solo_numeros = RegexValidator(
-    regex=r'^\d+$',
-    message='Este campo solo permite números.'
-)
 
-
-telefono_paraguay = RegexValidator(
-    regex=r'^09\d{8}$',
-    message='Ingrese un número paraguayo válido. Ejemplo: 0983325952.'
-)
-
-
-class ReclamoClienteForm(forms.Form):
-    # Número de contrato del cliente afectado.
-    numero_contrato = forms.CharField(
-        label='N° de Contrato',
-        max_length=20,
-        validators=[solo_numeros]
-    )
-
-    # ID del cliente afectado.
-    id_cliente = forms.CharField(
-        label='ID Cliente',
-        max_length=20,
-        validators=[solo_numeros]
-    )
-
-    # Correo opcional del cliente.
-    correo_cliente = forms.EmailField(
-        label='Correo del cliente',
-        required=False
-    )
-
-    # Teléfono principal paraguayo obligatorio.
-    contacto_principal = forms.CharField(
-        label='N° de contacto principal',
-        max_length=10,
-        validators=[telefono_paraguay]
-    )
-
-    # Teléfono secundario opcional.
-    contacto_secundario = forms.CharField(
-        label='N° de contacto secundario',
-        max_length=30,
-        required=False,
-        validators=[solo_numeros]
-    )
-
-    # Tipo de interacción del caso.
-    tipo_interaccion = forms.ChoiceField(
-        label='Interacción',
-        choices=[
-            ('reclamo', 'Reclamo'),
-            ('consulta', 'Consulta'),
+class GestionTicketForm(forms.ModelForm):
+    # Formulario usado por técnicos/supervisores para gestionar el ticket.
+    class Meta:
+        model = Ticket
+        fields = [
+            'columna',
+            'asignado_a',
+            'prioridad',
         ]
-    )
 
-    # Comentario inicial del empleado.
-    comentario = forms.CharField(
-        label='Comentario',
-        widget=forms.Textarea(attrs={'rows': 5})
-    )
+    def __init__(self, *args, tablero=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Muestra solo columnas del tablero actual del ticket.
+        if tablero:
+            self.fields['columna'].queryset = tablero.columnas.all()
+
+        Usuario = get_user_model()
+
+        # Permite asignar el caso solo a usuarios con rol técnico.
+        self.fields['asignado_a'].queryset = Usuario.objects.filter(
+            perfil__rol='tecnico'
+        )

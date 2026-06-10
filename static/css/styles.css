@@ -195,3 +195,52 @@ body {
     margin: 6px 0 0 0;
     padding-left: 18px;
 }
+
+.tablero-kanban {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    overflow-x: auto;
+}
+
+.columna-kanban {
+    background: #1f2937;
+    padding: 14px;
+    border-radius: 12px;
+    min-width: 280px;
+}
+
+.columna-kanban h3 {
+    margin-top: 0;
+    color: white;
+}
+
+.zona-tickets {
+    min-height: 300px;
+}
+
+.ticket-kanban {
+    background: #ffffff;
+    color: #111827;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    cursor: grab;
+}
+
+.ticket-kanban:active {
+    cursor: grabbing;
+}
+
+.ticket-kanban h4 {
+    margin: 0 0 8px 0;
+}
+
+.ticket-kanban a {
+    color: #111827;
+    text-decoration: none;
+}
+
+.ticket-kanban a:hover {
+    text-decoration: underline;
+}
