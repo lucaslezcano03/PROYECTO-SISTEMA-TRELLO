@@ -1,60 +1,93 @@
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
-from .forms import TicketCommentForm, TicketForm
-from .models import Ticket
+from apps.boards.models import BoardColumn
+from apps.notifications.services import crear_notificacion
 from apps.users.decorators import roles_permitidos
-from .forms import ReclamoClienteForm
+
+from .forms import GestionTicketForm, ReclamoClienteForm, TicketCommentForm
 from .models import Ticket
 from .services import buscar_tecnico_disponible, obtener_tablero_reclamos
 
+from django.db import transaction
 
 
 @login_required
 def ticket_create(request):
-    if request.method == 'POST':
-        form = TicketForm(request.POST, usuario=request.user)
-
-        if form.is_valid():
-            ticket = form.save(commit=False)
-            ticket.creado_por = request.user
-            ticket.save()
-
-            return redirect('boards:board_detail', board_id=ticket.tablero.id)
-    else:
-        form = TicketForm(usuario=request.user)
-
-    return render(request, 'tickets/ticket_form.html', {
-        'form': form
-    })
+    # Esta vista vieja se redirige al formulario real de reclamos.
+    return redirect('tickets:crear_reclamo_internet')
 
 
-@login_required
+@roles_permitidos('tecnico', 'supervisor', 'admin')
 def ticket_detail(request, ticket_id):
+    # Busca el ticket y valida que el usuario tenga permiso para verlo.
     ticket = get_object_or_404(
         Ticket,
         Q(id=ticket_id),
-        Q(tablero__creado_por=request.user) | Q(tablero__miembros=request.user)
+        Q(tablero__creado_por=request.user) |
+        Q(tablero__miembros=request.user) |
+        Q(asignado_a=request.user)
     )
 
     if request.method == 'POST':
-        form = TicketCommentForm(request.POST)
+        # Este bloque se usa cuando se actualiza estado, técnico o prioridad.
+        if 'guardar_cambios' in request.POST:
+            tecnico_anterior = ticket.asignado_a
+            columna_anterior = ticket.columna
 
-        if form.is_valid():
-            comentario = form.save(commit=False)
-            comentario.ticket = ticket
-            comentario.usuario = request.user
-            comentario.save()
+            gestion_form = GestionTicketForm(
+                request.POST,
+                instance=ticket,
+                tablero=ticket.tablero
+            )
+            comentario_form = TicketCommentForm()
 
-            return redirect('tickets:ticket_detail', ticket_id=ticket.id)
+            if gestion_form.is_valid():
+                ticket_actualizado = gestion_form.save()
+
+                # Si cambió el técnico, se crea notificación al nuevo asignado.
+                if ticket_actualizado.asignado_a != tecnico_anterior:
+                    crear_notificacion(
+                        ticket_actualizado.asignado_a,
+                        f'Se te asignó el ticket: {ticket_actualizado.titulo}'
+                    )
+
+                # Si cambió el estado, se registra como comentario automático.
+                if ticket_actualizado.columna != columna_anterior:
+                    ticket_actualizado.comentarios.create(
+                        usuario=request.user,
+                        mensaje=f'Estado cambiado de {columna_anterior.nombre} a {ticket_actualizado.columna.nombre}.'
+                    )
+
+                messages.success(request, 'El ticket fue actualizado correctamente.')
+                return redirect('tickets:ticket_detail', ticket_id=ticket.id)
+
+        # Este bloque se usa cuando se agrega un comentario de seguimiento.
+        elif 'agregar_comentario' in request.POST:
+            comentario_form = TicketCommentForm(request.POST)
+            gestion_form = GestionTicketForm(instance=ticket, tablero=ticket.tablero)
+
+            if comentario_form.is_valid():
+                comentario = comentario_form.save(commit=False)
+                comentario.ticket = ticket
+                comentario.usuario = request.user
+                comentario.save()
+
+                messages.success(request, 'Comentario agregado correctamente.')
+                return redirect('tickets:ticket_detail', ticket_id=ticket.id)
+
     else:
-        form = TicketCommentForm()
+        gestion_form = GestionTicketForm(instance=ticket, tablero=ticket.tablero)
+        comentario_form = TicketCommentForm()
 
     return render(request, 'tickets/ticket_detail.html', {
         'ticket': ticket,
-        'form': form
+        'gestion_form': gestion_form,
+        'comentario_form': comentario_form,
     })
 
 @roles_permitidos('empleado', 'supervisor', 'admin')
@@ -97,3 +130,83 @@ def crear_reclamo_internet(request):
 def reclamo_enviado(request):
     # Pantalla simple para confirmar que el reclamo fue enviado.
     return render(request, 'tickets/reclamo_enviado.html')
+
+@roles_permitidos('tecnico', 'supervisor', 'admin')
+def gestion_reclamos(request):
+    # Obtiene o crea el tablero oficial de reclamos de Internet Hogar.
+    tablero, columna_inicial = obtener_tablero_reclamos(request.user)
+
+    # Obtiene solamente las columnas de ese tablero.
+    columnas = tablero.columnas.prefetch_related('tickets').order_by('posicion')
+
+    return render(request, 'tickets/gestion_reclamos.html', {
+        'tablero': tablero,
+        'columnas': columnas,
+    })
+
+@require_POST
+@roles_permitidos('tecnico', 'supervisor', 'admin')
+def mover_ticket(request, ticket_id):
+    # Esta vista funciona como una pequeña API para mover tickets por drag & drop.
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+
+    columna_id = request.POST.get('columna_id')
+
+    # Si no llega el ID de la columna, se responde con error en formato JSON.
+    if not columna_id:
+        return JsonResponse({
+            'ok': False,
+            'error': 'No se recibió la columna destino.'
+        }, status=400)
+
+    nueva_columna = get_object_or_404(BoardColumn, id=columna_id)
+
+    # Evita mover un ticket a una columna que pertenece a otro tablero.
+    if nueva_columna.tablero_id != ticket.tablero_id:
+        return JsonResponse({
+            'ok': False,
+            'error': 'La columna no pertenece al tablero del ticket.'
+        }, status=400)
+
+    columna_anterior = ticket.columna
+
+    # Si se suelta en la misma columna, no se hace ningún cambio.
+    if columna_anterior.id == nueva_columna.id:
+        return JsonResponse({
+            'ok': True,
+            'mensaje': 'El ticket ya estaba en esa columna.',
+            'nuevo_estado': nueva_columna.nombre
+        })
+
+    try:
+        with transaction.atomic():
+            # Actualiza el estado del ticket.
+            ticket.columna = nueva_columna
+            ticket.save()
+
+            # Registra un comentario automático del cambio de estado.
+            ticket.comentarios.create(
+                usuario=request.user,
+                mensaje=f'Ticket movido de {columna_anterior.nombre} a {nueva_columna.nombre}.'
+            )
+
+        # Intenta notificar al técnico asignado sin romper el movimiento si falla.
+        try:
+            crear_notificacion(
+                ticket.asignado_a,
+                f'El ticket {ticket.titulo} fue movido a {nueva_columna.nombre}.'
+            )
+        except Exception:
+            pass
+
+        return JsonResponse({
+            'ok': True,
+            'ticket_id': ticket.id,
+            'nuevo_estado': nueva_columna.nombre
+        })
+
+    except Exception as error:
+        return JsonResponse({
+            'ok': False,
+            'error': str(error)
+        }, status=500)

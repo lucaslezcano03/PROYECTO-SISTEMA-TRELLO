@@ -12,11 +12,12 @@
 <header class="barra-superior">
     <h1>Sistema de Tickets Técnicos</h1>
 
-    <nav>
-        <a href="{% url 'boards:board_list' %}">Tableros</a>
-        <a href="{% url 'tickets:ticket_create' %}">Crear ticket</a>
-        <a href="/admin/">Admin</a>
-    </nav>
+<nav>
+    <a href="{% url 'tickets:gestion_reclamos' %}">Gestión reclamos</a>
+    <a href="{% url 'tickets:crear_reclamo_internet' %}">Cargar reclamo</a>
+    <a href="/admin/">Admin</a>
+</nav>
+
 </header>
 
 <main class="contenido-principal">
@@ -26,3 +27,5 @@
 
 </body>
 </html>
+
+
