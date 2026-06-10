@@ -4,6 +4,7 @@ from django.db.models import Q
 
 from apps.boards.models import Board, BoardColumn
 from .models import Ticket, TicketComment
+from django.core.validators import RegexValidator
 
 
 class TicketForm(forms.ModelForm):
@@ -55,3 +56,66 @@ class TicketCommentForm(forms.ModelForm):
     class Meta:
         model = TicketComment
         fields = ['mensaje']
+
+solo_numeros = RegexValidator(
+    regex=r'^\d+$',
+    message='Este campo solo permite números.'
+)
+
+
+telefono_paraguay = RegexValidator(
+    regex=r'^09\d{8}$',
+    message='Ingrese un número paraguayo válido. Ejemplo: 0983325952.'
+)
+
+
+class ReclamoClienteForm(forms.Form):
+    # Número de contrato del cliente afectado.
+    numero_contrato = forms.CharField(
+        label='N° de Contrato',
+        max_length=20,
+        validators=[solo_numeros]
+    )
+
+    # ID del cliente afectado.
+    id_cliente = forms.CharField(
+        label='ID Cliente',
+        max_length=20,
+        validators=[solo_numeros]
+    )
+
+    # Correo opcional del cliente.
+    correo_cliente = forms.EmailField(
+        label='Correo del cliente',
+        required=False
+    )
+
+    # Teléfono principal paraguayo obligatorio.
+    contacto_principal = forms.CharField(
+        label='N° de contacto principal',
+        max_length=10,
+        validators=[telefono_paraguay]
+    )
+
+    # Teléfono secundario opcional.
+    contacto_secundario = forms.CharField(
+        label='N° de contacto secundario',
+        max_length=30,
+        required=False,
+        validators=[solo_numeros]
+    )
+
+    # Tipo de interacción del caso.
+    tipo_interaccion = forms.ChoiceField(
+        label='Interacción',
+        choices=[
+            ('reclamo', 'Reclamo'),
+            ('consulta', 'Consulta'),
+        ]
+    )
+
+    # Comentario inicial del empleado.
+    comentario = forms.CharField(
+        label='Comentario',
+        widget=forms.Textarea(attrs={'rows': 5})
+    )

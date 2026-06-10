@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>Reclamo enviado</h2>
+    <p>El reclamo fue registrado correctamente y asignado a un técnico disponible.</p>
+
+    <a href="{% url 'tickets:crear_reclamo_internet' %}">
+        Cargar otro reclamo
+    </a>
+</section>
+
+{% endblock %}
