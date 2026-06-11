@@ -244,3 +244,57 @@ body {
 .ticket-kanban a:hover {
     text-decoration: underline;
 }
+
+.mensajes {
+    margin-bottom: 18px;
+}
+
+.mensaje {
+    background: #e0f2fe;
+    border-left: 4px solid #0284c7;
+    padding: 10px 14px;
+    border-radius: 8px;
+}
+
+.lista-notificaciones {
+    margin-top: 18px;
+}
+
+.notificacion {
+    background: #f3f4f6;
+    padding: 14px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
+.notificacion.no-leida {
+    background: #dbeafe;
+    border-left: 4px solid #2563eb;
+}
+
+.notificacion p {
+    margin: 0 0 6px 0;
+}
+
+.notificacion small {
+    color: #6b7280;
+}
+
+.notificacion form {
+    margin-top: 10px;
+}
+
+.notificacion button,
+.bloque button {
+    background: #1f2937;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.notificacion button:hover,
+.bloque button:hover {
+    background: #374151;
+}

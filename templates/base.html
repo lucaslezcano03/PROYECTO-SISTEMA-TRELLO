@@ -13,14 +13,43 @@
     <h1>Sistema de Tickets Técnicos</h1>
 
 <nav>
-    <a href="{% url 'tickets:gestion_reclamos' %}">Gestión reclamos</a>
-    <a href="{% url 'tickets:crear_reclamo_internet' %}">Cargar reclamo</a>
-    <a href="/admin/">Admin</a>
+    {% if request.user.is_authenticated %}
+
+        {% if request.user.is_superuser or request.user.perfil.rol == 'tecnico' or request.user.perfil.rol == 'supervisor' or request.user.perfil.rol == 'admin' %}
+            <a href="{% url 'tickets:gestion_reclamos' %}">Gestión reclamos</a>
+        {% endif %}
+
+        {% if request.user.is_superuser or request.user.perfil.rol == 'empleado' or request.user.perfil.rol == 'supervisor' or request.user.perfil.rol == 'admin' %}
+            <a href="{% url 'tickets:crear_reclamo_internet' %}">Cargar reclamo</a>
+        {% endif %}
+
+        <a href="{% url 'notifications:notification_list' %}">
+            Notificaciones
+            {% if notificaciones_no_leidas > 0 %}
+                ({{ notificaciones_no_leidas }})
+            {% endif %}
+        </a>
+
+        {% if request.user.is_staff %}
+            <a href="/admin/">Admin</a>
+        {% endif %}
+
+    {% else %}
+        <a href="/admin/login/">Iniciar sesión</a>
+    {% endif %}
 </nav>
 
 </header>
 
 <main class="contenido-principal">
+{% if messages %}
+    <div class="mensajes">
+        {% for message in messages %}
+            <p class="mensaje {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    </div>
+{% endif %}
+    
     {% block content %}
     {% endblock %}
 </main>

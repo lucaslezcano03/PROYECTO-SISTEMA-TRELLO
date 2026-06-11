@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>Mis notificaciones</h2>
+
+    {% if notificaciones %}
+        <form method="post" action="{% url 'notifications:notification_mark_all_read' %}">
+            {% csrf_token %}
+            <button type="submit">Marcar todas como leídas</button>
+        </form>
+
+        <div class="lista-notificaciones">
+            {% for notificacion in notificaciones %}
+                <div class="notificacion {% if not notificacion.leida %}no-leida{% endif %}">
+                    <p>{{ notificacion.mensaje }}</p>
+                    <small>{{ notificacion.fecha_creacion }}</small>
+
+                    {% if not notificacion.leida %}
+                        <form method="post" action="{% url 'notifications:notification_mark_read' notificacion.id %}">
+                            {% csrf_token %}
+                            <button type="submit">Marcar como leída</button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No tenés notificaciones todavía.</p>
+    {% endif %}
+</section>
+
+{% endblock %}

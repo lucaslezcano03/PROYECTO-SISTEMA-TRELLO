@@ -37,4 +37,7 @@ urlpatterns = [
 
     # Rutas principales de tickets y reclamos.
     path('tickets/', include('apps.tickets.urls')),
+
+    # Rutas principales de notificaciones
+    path('notificaciones/', include('apps.notifications.urls')),
 ]

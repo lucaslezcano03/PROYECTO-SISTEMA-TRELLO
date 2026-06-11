@@ -40,7 +40,7 @@
 </section>
 
 <script>
-    // Obtiene el token CSRF para que Django acepte la petición POST.
+    // Obtiene el token CSRF para que Django acepte peticiones POST desde JavaScript.
     function obtenerCookie(nombre) {
         let valorCookie = null;
 
@@ -62,28 +62,51 @@
 
     const csrfToken = obtenerCookie('csrftoken');
 
-    // Guarda el ticket que el usuario está arrastrando.
+    // Guarda temporalmente la tarjeta que el usuario está arrastrando.
     let ticketArrastrado = null;
+    let columnaOrigen = null;
+
+    function actualizarTextoVacio(columna) {
+        // Muestra u oculta el texto "Sin tickets" según haya tarjetas o no.
+        const zonaTickets = columna.querySelector('.zona-tickets');
+        const tickets = zonaTickets.querySelectorAll('.ticket-kanban');
+        let textoVacio = zonaTickets.querySelector('.texto-vacio');
+
+        if (tickets.length === 0) {
+            if (!textoVacio) {
+                textoVacio = document.createElement('p');
+                textoVacio.className = 'texto-vacio';
+                textoVacio.textContent = 'Sin tickets';
+                zonaTickets.appendChild(textoVacio);
+            }
+        } else {
+            if (textoVacio) {
+                textoVacio.remove();
+            }
+        }
+    }
 
     document.querySelectorAll('.ticket-kanban').forEach(ticket => {
         ticket.addEventListener('dragstart', () => {
+            // Guarda el ticket y la columna desde donde salió.
             ticketArrastrado = ticket;
+            columnaOrigen = ticket.closest('.columna-kanban');
         });
     });
 
-    document.querySelectorAll('.columna-kanban').forEach(columna => {
-        columna.addEventListener('dragover', event => {
+    document.querySelectorAll('.columna-kanban').forEach(columnaDestino => {
+        columnaDestino.addEventListener('dragover', event => {
             event.preventDefault();
         });
 
-        columna.addEventListener('drop', () => {
+        columnaDestino.addEventListener('drop', () => {
             if (!ticketArrastrado) {
                 return;
             }
 
             const ticketId = ticketArrastrado.dataset.ticketId;
-            const columnaId = columna.dataset.columnaId;
-            const zonaTickets = columna.querySelector('.zona-tickets');
+            const columnaId = columnaDestino.dataset.columnaId;
+            const zonaDestino = columnaDestino.querySelector('.zona-tickets');
 
             const datos = new FormData();
             datos.append('columna_id', columnaId);
@@ -96,7 +119,6 @@
                 body: datos
             })
             .then(response => {
-                // Si Django responde con error, se muestra el detalle real en consola.
                 if (!response.ok) {
                     return response.json().then(data => {
                         throw new Error(data.error || 'Error al mover el ticket.');
@@ -107,16 +129,32 @@
             })
             .then(data => {
                 if (data.ok) {
-                    // Si el backend confirmó el cambio, se mueve visualmente la tarjeta.
-                    zonaTickets.appendChild(ticketArrastrado);
+                    // Borra el texto "Sin tickets" de la columna destino si existe.
+                    const textoVacioDestino = zonaDestino.querySelector('.texto-vacio');
+
+                    if (textoVacioDestino) {
+                        textoVacioDestino.remove();
+                    }
+
+                    // Mueve la tarjeta visualmente.
+                    zonaDestino.appendChild(ticketArrastrado);
+
+                    // Actualiza el texto vacío en origen y destino.
+                    if (columnaOrigen) {
+                        actualizarTextoVacio(columnaOrigen);
+                    }
+
+                    actualizarTextoVacio(columnaDestino);
+
                     ticketArrastrado = null;
+                    columnaOrigen = null;
                 } else {
                     alert(data.error || 'No se pudo mover el ticket.');
                 }
             })
             .catch(error => {
                 console.error('Detalle del error:', error);
-                alert('No se pudo mover el ticket. Revisá la consola o la terminal.');
+                alert('No se pudo mover el ticket.');
             });
         });
     });
