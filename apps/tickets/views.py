@@ -42,7 +42,8 @@ def ticket_detail(request, ticket_id):
             gestion_form = GestionTicketForm(
                 request.POST,
                 instance=ticket,
-                tablero=ticket.tablero
+                tablero=ticket.tablero,
+                usuario=request.user
             )
             comentario_form = TicketCommentForm()
 
@@ -69,7 +70,11 @@ def ticket_detail(request, ticket_id):
         # Este bloque se usa cuando se agrega un comentario de seguimiento.
         elif 'agregar_comentario' in request.POST:
             comentario_form = TicketCommentForm(request.POST)
-            gestion_form = GestionTicketForm(instance=ticket, tablero=ticket.tablero)
+            gestion_form = GestionTicketForm(
+                instance=ticket,
+                tablero=ticket.tablero,
+                usuario=request.user
+            )
 
             if comentario_form.is_valid():
                 comentario = comentario_form.save(commit=False)
@@ -81,7 +86,11 @@ def ticket_detail(request, ticket_id):
                 return redirect('tickets:ticket_detail', ticket_id=ticket.id)
 
     else:
-        gestion_form = GestionTicketForm(instance=ticket, tablero=ticket.tablero)
+        gestion_form = GestionTicketForm(
+                instance=ticket,
+                tablero=ticket.tablero,
+                usuario=request.user
+            )
         comentario_form = TicketCommentForm()
 
     return render(request, 'tickets/ticket_detail.html', {
