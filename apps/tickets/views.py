@@ -4,7 +4,9 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
-
+from django.db.models import Prefetch
+from django.http import HttpResponseForbidden, JsonResponse
+from apps.users.permissions import puede_mover_ticket, puede_ver_ticket
 from apps.boards.models import BoardColumn
 from apps.notifications.services import crear_notificacion
 from apps.users.decorators import roles_permitidos
@@ -24,17 +26,17 @@ def ticket_create(request):
 
 @roles_permitidos('tecnico', 'supervisor', 'admin')
 def ticket_detail(request, ticket_id):
-    # Busca el ticket y valida que el usuario tenga permiso para verlo.
+    # Busca el ticket solicitado.
     ticket = get_object_or_404(
-        Ticket,
-        Q(id=ticket_id),
-        Q(tablero__creado_por=request.user) |
-        Q(tablero__miembros=request.user) |
-        Q(asignado_a=request.user)
+        Ticket.objects.select_related('tablero', 'columna', 'asignado_a'),
+        id=ticket_id
     )
 
+    # Evita que un técnico entre por URL a tickets que no son suyos.
+    if not puede_ver_ticket(request.user, ticket):
+        return HttpResponseForbidden('No tenés permiso para ver este ticket.')
+
     if request.method == 'POST':
-        # Este bloque se usa cuando se actualiza estado, técnico o prioridad.
         if 'guardar_cambios' in request.POST:
             tecnico_anterior = ticket.asignado_a
             columna_anterior = ticket.columna
@@ -45,19 +47,18 @@ def ticket_detail(request, ticket_id):
                 tablero=ticket.tablero,
                 usuario=request.user
             )
+
             comentario_form = TicketCommentForm()
 
             if gestion_form.is_valid():
                 ticket_actualizado = gestion_form.save()
 
-                # Si cambió el técnico, se crea notificación al nuevo asignado.
                 if ticket_actualizado.asignado_a != tecnico_anterior:
                     crear_notificacion(
                         ticket_actualizado.asignado_a,
                         f'Se te asignó el ticket: {ticket_actualizado.titulo}'
                     )
 
-                # Si cambió el estado, se registra como comentario automático.
                 if ticket_actualizado.columna != columna_anterior:
                     ticket_actualizado.comentarios.create(
                         usuario=request.user,
@@ -67,9 +68,9 @@ def ticket_detail(request, ticket_id):
                 messages.success(request, 'El ticket fue actualizado correctamente.')
                 return redirect('tickets:ticket_detail', ticket_id=ticket.id)
 
-        # Este bloque se usa cuando se agrega un comentario de seguimiento.
         elif 'agregar_comentario' in request.POST:
             comentario_form = TicketCommentForm(request.POST)
+
             gestion_form = GestionTicketForm(
                 instance=ticket,
                 tablero=ticket.tablero,
@@ -87,10 +88,11 @@ def ticket_detail(request, ticket_id):
 
     else:
         gestion_form = GestionTicketForm(
-                instance=ticket,
-                tablero=ticket.tablero,
-                usuario=request.user
-            )
+            instance=ticket,
+            tablero=ticket.tablero,
+            usuario=request.user
+        )
+
         comentario_form = TicketCommentForm()
 
     return render(request, 'tickets/ticket_detail.html', {
@@ -135,18 +137,38 @@ def crear_reclamo_internet(request):
     })
 
 
-@roles_permitidos('empleado', 'supervisor', 'admin')
+@roles_permitidos('empleado', 'tecnico', 'supervisor', 'admin')
 def reclamo_enviado(request):
     # Pantalla simple para confirmar que el reclamo fue enviado.
     return render(request, 'tickets/reclamo_enviado.html')
 
 @roles_permitidos('tecnico', 'supervisor', 'admin')
 def gestion_reclamos(request):
-    # Obtiene o crea el tablero oficial de reclamos de Internet Hogar.
+    # Obtiene o crea el tablero oficial de reclamos.
     tablero, columna_inicial = obtener_tablero_reclamos(request.user)
 
-    # Obtiene solamente las columnas de ese tablero.
-    columnas = tablero.columnas.prefetch_related('tickets').order_by('posicion')
+    # Base de tickets visibles dentro del tablero.
+    tickets_visibles = Ticket.objects.filter(
+        tablero=tablero
+    ).select_related(
+        'asignado_a',
+        'columna'
+    ).order_by(
+        'posicion',
+        '-fecha_creacion'
+    )
+
+    # Si el usuario es técnico, solo ve tickets asignados a él.
+    if not request.user.is_superuser:
+        perfil = getattr(request.user, 'perfil', None)
+
+        if perfil and perfil.rol == 'tecnico':
+            tickets_visibles = tickets_visibles.filter(asignado_a=request.user)
+
+    # Precarga los tickets filtrados dentro de cada columna.
+    columnas = tablero.columnas.prefetch_related(
+        Prefetch('tickets', queryset=tickets_visibles)
+    ).order_by('posicion')
 
     return render(request, 'tickets/gestion_reclamos.html', {
         'tablero': tablero,
@@ -158,6 +180,13 @@ def gestion_reclamos(request):
 def mover_ticket(request, ticket_id):
     # Esta vista funciona como una API interna para mover tickets por drag & drop.
     ticket = get_object_or_404(Ticket, id=ticket_id)
+
+    # Evita que un técnico mueva tickets que no tiene asignados.
+    if not puede_mover_ticket(request.user, ticket):
+        return JsonResponse({
+            'ok': False,
+            'error': 'No tenés permiso para mover este ticket.'
+        }, status=403)
 
     columna_id = request.POST.get('columna_id')
 

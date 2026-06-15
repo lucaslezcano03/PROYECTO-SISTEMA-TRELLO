@@ -141,12 +141,13 @@ class GestionTicketForm(forms.ModelForm):
 
         Usuario = get_user_model()
 
-        # Solo los usuarios con rol técnico pueden recibir tickets.
+        # Solo usuarios técnicos pueden recibir tickets.
         self.fields['asignado_a'].queryset = Usuario.objects.filter(
-            perfil__rol='tecnico'
+            perfil__rol='tecnico',
+            perfil__disponible=True
         )
 
-        # El técnico puede mover estado/prioridad, pero no reasignar casos.
+        # El técnico puede cambiar estado/prioridad, pero no reasignar.
         if usuario and not usuario.is_superuser:
             perfil = getattr(usuario, 'perfil', None)
 
