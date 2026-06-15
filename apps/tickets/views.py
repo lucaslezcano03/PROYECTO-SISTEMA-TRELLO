@@ -90,7 +90,7 @@ def ticket_detail(request, ticket_id):
         'comentario_form': comentario_form,
     })
 
-@roles_permitidos('empleado', 'supervisor', 'admin')
+@roles_permitidos('empleado', 'tecnico', 'supervisor', 'admin')
 def crear_reclamo_internet(request):
     # Esta vista permite que un empleado cargue un reclamo de Internet Hogar.
     if request.method == 'POST':

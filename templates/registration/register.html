@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="formulario-login">
+    <h2>Registro de empleado</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {{ form.as_p }}
+
+        <button type="submit">Crear usuario</button>
+    </form>
+
+    <p class="texto-centro">
+        ¿Ya tenés cuenta?
+        <a href="{% url 'login' %}">Iniciar sesión</a>
+    </p>
+</section>
+
+{% endblock %}
