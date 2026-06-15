@@ -73,6 +73,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.notifications.context_processors.notificaciones_usuario',
+                'apps.users.context_processors.datos_usuario',
             ],
         },
     },
@@ -132,3 +134,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Ruta donde Django manda al usuario si intenta entrar sin iniciar sesión.
+LOGIN_URL = 'login'
+
+# Después del login, se redirige según el rol del usuario.
+LOGIN_REDIRECT_URL = 'users:inicio_por_rol'
+
+# Después del logout, vuelve al login.
+LOGOUT_REDIRECT_URL = 'login'

@@ -244,3 +244,103 @@ body {
 .ticket-kanban a:hover {
     text-decoration: underline;
 }
+
+.mensajes {
+    margin-bottom: 18px;
+}
+
+.mensaje {
+    background: #e0f2fe;
+    border-left: 4px solid #0284c7;
+    padding: 10px 14px;
+    border-radius: 8px;
+}
+
+.lista-notificaciones {
+    margin-top: 18px;
+}
+
+.notificacion {
+    background: #f3f4f6;
+    padding: 14px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
+.notificacion.no-leida {
+    background: #dbeafe;
+    border-left: 4px solid #2563eb;
+}
+
+.notificacion p {
+    margin: 0 0 6px 0;
+}
+
+.notificacion small {
+    color: #6b7280;
+}
+
+.notificacion form {
+    margin-top: 10px;
+}
+
+.notificacion button,
+.bloque button {
+    background: #1f2937;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.notificacion button:hover,
+.bloque button:hover {
+    background: #374151;
+}
+
+.formulario-login {
+    max-width: 420px;
+    margin: 40px auto;
+    background: white;
+    padding: 28px;
+    border-radius: 14px;
+}
+
+.formulario-login h2 {
+    text-align: center;
+    margin-bottom: 22px;
+}
+
+.formulario-login button {
+    width: 100%;
+    padding: 10px;
+    background: #1f2937;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.formulario-login button:hover {
+    background: #374151;
+}
+
+.texto-centro {
+    text-align: center;
+    margin-top: 18px;
+}
+
+.form-logout {
+    display: inline;
+    margin-left: 14px;
+}
+
+.form-logout button {
+    background: transparent;
+    color: white;
+    border: 1px solid white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}

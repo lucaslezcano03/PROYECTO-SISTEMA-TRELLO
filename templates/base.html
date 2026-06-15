@@ -13,14 +13,51 @@
     <h1>Sistema de Tickets Técnicos</h1>
 
 <nav>
-    <a href="{% url 'tickets:gestion_reclamos' %}">Gestión reclamos</a>
-    <a href="{% url 'tickets:crear_reclamo_internet' %}">Cargar reclamo</a>
-    <a href="/admin/">Admin</a>
+    {% if request.user.is_authenticated %}
+
+        {% if es_tecnico or es_supervisor or es_admin_sistema %}
+            <a href="{% url 'tickets:gestion_reclamos' %}">Gestión reclamos</a>
+        {% endif %}
+
+        {% if es_empleado or es_tecnico or es_supervisor or es_admin_sistema %}
+            <a href="{% url 'tickets:crear_reclamo_internet' %}">Cargar reclamo</a>
+        {% endif %}
+
+        {% if es_tecnico or es_supervisor or es_admin_sistema %}
+            <a href="{% url 'notifications:notification_list' %}">
+                Notificaciones
+                {% if notificaciones_no_leidas > 0 %}
+                    ({{ notificaciones_no_leidas }})
+                {% endif %}
+            </a>
+        {% endif %}
+
+        {% if request.user.is_staff %}
+            <a href="/admin/">Admin</a>
+        {% endif %}
+
+        <form method="post" action="{% url 'logout' %}" class="form-logout">
+            {% csrf_token %}
+            <button type="submit">Cerrar sesión</button>
+        </form>
+
+    {% else %}
+        <a href="{% url 'login' %}">Iniciar sesión</a>
+        <a href="{% url 'users:registro_empleado' %}">Registrarse</a>
+    {% endif %}
 </nav>
 
 </header>
 
 <main class="contenido-principal">
+{% if messages %}
+    <div class="mensajes">
+        {% for message in messages %}
+            <p class="mensaje {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    </div>
+{% endif %}
+    
     {% block content %}
     {% endblock %}
 </main>

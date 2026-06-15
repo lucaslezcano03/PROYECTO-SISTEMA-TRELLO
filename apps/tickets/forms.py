@@ -123,7 +123,7 @@ class TicketCommentForm(forms.ModelForm):
 
 
 class GestionTicketForm(forms.ModelForm):
-    # Formulario usado por técnicos/supervisores para gestionar el ticket.
+    # Formulario usado para gestionar estado, técnico asignado y prioridad.
     class Meta:
         model = Ticket
         fields = [
@@ -132,7 +132,7 @@ class GestionTicketForm(forms.ModelForm):
             'prioridad',
         ]
 
-    def __init__(self, *args, tablero=None, **kwargs):
+    def __init__(self, *args, tablero=None, usuario=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Muestra solo columnas del tablero actual del ticket.
@@ -141,7 +141,14 @@ class GestionTicketForm(forms.ModelForm):
 
         Usuario = get_user_model()
 
-        # Permite asignar el caso solo a usuarios con rol técnico.
+        # Solo los usuarios con rol técnico pueden recibir tickets.
         self.fields['asignado_a'].queryset = Usuario.objects.filter(
             perfil__rol='tecnico'
         )
+
+        # El técnico puede mover estado/prioridad, pero no reasignar casos.
+        if usuario and not usuario.is_superuser:
+            perfil = getattr(usuario, 'perfil', None)
+
+            if perfil and perfil.rol == 'tecnico':
+                self.fields.pop('asignado_a')

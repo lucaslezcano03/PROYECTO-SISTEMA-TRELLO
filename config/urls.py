@@ -16,25 +16,24 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from django.views.generic import RedirectView
 
 
 urlpatterns = [
     # Panel administrativo de Django.
     path('admin/', admin.site.urls),
 
-    # Login/logout propios de Django.
+    # Login y logout propios de Django.
     path('accounts/', include('django.contrib.auth.urls')),
 
-    # La página principal redirige al tablero de gestión de reclamos.
-    path('', RedirectView.as_view(
-        pattern_name='tickets:gestion_reclamos',
-        permanent=False
-    ), name='inicio'),
+    # Inicio del sistema, redirige según el rol.
+    path('', include('apps.users.urls')),
 
-    # Rutas de tableros antiguos, se dejan separadas para no mezclar con la gestión real.
+    # Tableros antiguos o auxiliares.
     path('tableros/', include('apps.boards.urls')),
 
-    # Rutas principales de tickets y reclamos.
+    # Reclamos y tickets.
     path('tickets/', include('apps.tickets.urls')),
+
+    # Notificaciones.
+    path('notificaciones/', include('apps.notifications.urls')),
 ]
