@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.db.models import Prefetch
 from django.http import HttpResponseForbidden, JsonResponse
-from apps.users.permissions import puede_mover_ticket, puede_ver_ticket
+from apps.users.permissions import puede_cargar_reclamos, puede_mover_ticket, puede_ver_ticket
 from apps.boards.models import BoardColumn
 from apps.notifications.services import crear_notificacion
 from apps.users.decorators import roles_permitidos
@@ -16,6 +16,11 @@ from .models import Ticket
 from .services import buscar_tecnico_disponible, obtener_tablero_reclamos
 
 from django.db import transaction
+from rest_framework import status
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 
 @login_required
@@ -238,4 +243,136 @@ def mover_ticket(request, ticket_id):
         'ok': True,
         'ticket_id': ticket.id,
         'nuevo_estado': nueva_columna.nombre
+    })
+
+def ticket_a_json(ticket):
+    # Convierte un ticket del modelo Django a un diccionario JSON.
+    return {
+        'id': ticket.id,
+        'titulo': ticket.titulo,
+        'numero_contrato': ticket.numero_contrato,
+        'id_cliente': ticket.id_cliente,
+        'correo_cliente': ticket.correo_cliente,
+        'contacto_principal': ticket.contacto_principal,
+        'contacto_secundario': ticket.contacto_secundario,
+        'tipo_interaccion': ticket.tipo_interaccion,
+        'detalle_reclamo': ticket.detalle_reclamo,
+        'prioridad': ticket.prioridad,
+        'estado': ticket.columna.nombre if ticket.columna else None,
+        'tablero': ticket.tablero.nombre if ticket.tablero else None,
+        'creado_por': ticket.creado_por.username if ticket.creado_por else None,
+        'asignado_a': ticket.asignado_a.username if ticket.asignado_a else None,
+        'fecha_creacion': ticket.fecha_creacion,
+    }
+
+
+@api_view(['GET', 'POST'])
+@authentication_classes([BasicAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def api_tickets(request):
+    # API para listar tickets y crear nuevos reclamos desde Postman o terminal.
+
+    if request.method == 'GET':
+        tablero, columna_inicial = obtener_tablero_reclamos(request.user)
+
+        tickets = Ticket.objects.filter(
+            tablero=tablero
+        ).select_related(
+            'tablero',
+            'columna',
+            'creado_por',
+            'asignado_a'
+        ).order_by(
+            '-fecha_creacion'
+        )
+
+        # El técnico solo ve tickets asignados a él.
+        if not request.user.is_superuser:
+            perfil = getattr(request.user, 'perfil', None)
+
+            if perfil and perfil.rol == 'tecnico':
+                tickets = tickets.filter(asignado_a=request.user)
+
+            elif perfil and perfil.rol == 'empleado':
+                tickets = tickets.filter(creado_por=request.user)
+
+        datos = [ticket_a_json(ticket) for ticket in tickets]
+
+        return Response({
+            'ok': True,
+            'cantidad': len(datos),
+            'tickets': datos
+        })
+
+    if request.method == 'POST':
+        # Valida si el usuario tiene permiso para cargar reclamos.
+        if not puede_cargar_reclamos(request.user):
+            return Response({
+                'ok': False,
+                'error': 'No tenés permiso para crear tickets.'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        form = ReclamoClienteForm(request.data)
+
+        if not form.is_valid():
+            return Response({
+                'ok': False,
+                'errores': form.errors.get_json_data()
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        tablero, columna_inicial = obtener_tablero_reclamos(request.user)
+        tecnico_asignado = buscar_tecnico_disponible()
+
+        ticket = Ticket.objects.create(
+            numero_contrato=form.cleaned_data['numero_contrato'],
+            id_cliente=form.cleaned_data['id_cliente'],
+            correo_cliente=form.cleaned_data['correo_cliente'],
+            contacto_principal=form.cleaned_data['contacto_principal'],
+            contacto_secundario=form.cleaned_data['contacto_secundario'],
+            tipo_interaccion=form.cleaned_data['tipo_interaccion'],
+            detalle_reclamo=form.cleaned_data['comentario'],
+            tablero=tablero,
+            columna=columna_inicial,
+            creado_por=request.user,
+            asignado_a=tecnico_asignado,
+            prioridad='media'
+        )
+
+        if tecnico_asignado:
+            crear_notificacion(
+                tecnico_asignado,
+                f'Se te asignó el ticket: {ticket.titulo}'
+            )
+
+        return Response({
+            'ok': True,
+            'mensaje': 'Ticket creado correctamente desde la API.',
+            'ticket': ticket_a_json(ticket)
+        }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@authentication_classes([BasicAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def api_ticket_detail(request, ticket_id):
+    # API para consultar el detalle de un ticket específico.
+    ticket = get_object_or_404(
+        Ticket.objects.select_related(
+            'tablero',
+            'columna',
+            'creado_por',
+            'asignado_a'
+        ),
+        id=ticket_id
+    )
+
+    if not puede_ver_ticket(request.user, ticket):
+        return Response({
+            'ok': False,
+            'error': 'No tenés permiso para ver este ticket.'
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    return Response({
+        'ok': True,
+        'ticket': ticket_a_json(ticket)
     })
