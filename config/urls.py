@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from apps.tickets import views as ticket_views
 
 
 urlpatterns = [
@@ -36,4 +37,8 @@ urlpatterns = [
 
     # Notificaciones.
     path('notificaciones/', include('apps.notifications.urls')),
+
+    # API de tickets para probar desde Postman, navegador o terminal.
+    path('api/tickets/', ticket_views.api_tickets, name='api_tickets'),
+    path('api/tickets/<int:ticket_id>/', ticket_views.api_ticket_detail, name='api_ticket_detail'),
 ]

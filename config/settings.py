@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
     'apps.users',
     'apps.boards',
     'apps.tickets',
@@ -143,3 +144,13 @@ LOGIN_REDIRECT_URL = 'users:inicio_por_rol'
 
 # Después del logout, vuelve al login.
 LOGOUT_REDIRECT_URL = 'login'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
