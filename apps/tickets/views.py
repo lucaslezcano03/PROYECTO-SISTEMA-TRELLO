@@ -376,3 +376,26 @@ def api_ticket_detail(request, ticket_id):
         'ok': True,
         'ticket': ticket_a_json(ticket)
     })
+
+@api_view(['GET'])
+@authentication_classes([BasicAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def api_estado_sistema(request):
+    # API simple para comprobar que el backend está funcionando.
+    perfil = getattr(request.user, 'perfil', None)
+
+    if request.user.is_superuser:
+        rol = 'admin'
+    elif perfil:
+        rol = perfil.rol
+    else:
+        rol = 'sin perfil'
+
+    return Response({
+        'ok': True,
+        'sistema': 'Sistema de Tickets Técnicos',
+        'api': 'activa',
+        'usuario': request.user.username,
+        'rol': rol,
+        'mensaje': 'Backend funcionando correctamente.'
+    })

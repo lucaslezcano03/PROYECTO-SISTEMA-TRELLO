@@ -41,4 +41,5 @@ urlpatterns = [
     # API de tickets para probar desde Postman, navegador o terminal.
     path('api/tickets/', ticket_views.api_tickets, name='api_tickets'),
     path('api/tickets/<int:ticket_id>/', ticket_views.api_ticket_detail, name='api_ticket_detail'),
+    path('api/estado/', ticket_views.api_estado_sistema, name='api_estado_sistema'),
 ]
