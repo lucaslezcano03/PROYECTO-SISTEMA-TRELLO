@@ -21,6 +21,8 @@ from rest_framework.authentication import BasicAuthentication, SessionAuthentica
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 
 @login_required
@@ -238,6 +240,21 @@ def mover_ticket(request, ticket_id):
                 ticket.asignado_a,
                 f'El ticket "{ticket.titulo}" fue movido a {nueva_columna.nombre}.'
             )
+
+        # Obtiene la capa de comunicación configurada en Channels.
+    channel_layer = get_channel_layer()
+
+    # Informa en tiempo real a todos los navegadores conectados.
+    async_to_sync(channel_layer.group_send)(
+        'tablero_reclamos',
+        {
+            'type': 'ticket.movido',
+            'ticket_id': ticket.id,
+            'columna_id': nueva_columna.id,
+            'nuevo_estado': nueva_columna.nombre,
+            'movido_por': request.user.username,
+        }
+    )
 
     return JsonResponse({
         'ok': True,
