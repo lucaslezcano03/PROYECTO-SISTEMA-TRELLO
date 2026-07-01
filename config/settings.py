@@ -25,7 +25,10 @@ SECRET_KEY = 'django-insecure-76$bpc!yik(q6jy@6s6cx=5t(r++nc!v)j#h(531rh8s)_4g!x
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+]
 
 
 # Application definition
@@ -39,6 +42,8 @@ STATICFILES_DIRS = [
 ]
 
 INSTALLED_APPS = [
+    # Daphne ejecuta Django mediante ASGI.
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -46,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'channels',
     'apps.users',
     'apps.boards',
     'apps.tickets',
@@ -153,4 +159,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+}
+
+# Indica cuál es la aplicación ASGI principal del proyecto.
+ASGI_APPLICATION = 'config.asgi.application'
+
+
+# Canal temporal para desarrollo local.
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
 }

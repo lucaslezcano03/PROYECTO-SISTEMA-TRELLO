@@ -160,4 +160,73 @@
     });
 </script>
 
+<script>
+    // Utiliza wss en HTTPS y ws durante el desarrollo local.
+    const protocoloWebSocket =
+        window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+    const socketTickets = new WebSocket(
+        `${protocoloWebSocket}://${window.location.host}/ws/tickets/`
+    );
+
+    socketTickets.onopen = function () {
+        console.log('WebSocket de tickets conectado.');
+    };
+
+    socketTickets.onmessage = function (evento) {
+        const datos = JSON.parse(evento.data);
+
+        if (datos.tipo !== 'ticket_movido') {
+            return;
+        }
+
+        // Busca la tarjeta que fue modificada.
+        const ticket = document.querySelector(
+            `.ticket-kanban[data-ticket-id="${datos.ticket_id}"]`
+        );
+
+        // Un técnico podría no tener permiso para visualizar ese ticket.
+        if (!ticket) {
+            return;
+        }
+
+        const columnaOrigen = ticket.closest('.columna-kanban');
+
+        const columnaDestino = document.querySelector(
+            `.columna-kanban[data-columna-id="${datos.columna_id}"]`
+        );
+
+        if (!columnaDestino) {
+            return;
+        }
+
+        const zonaDestino = columnaDestino.querySelector('.zona-tickets');
+        const textoVacio = zonaDestino.querySelector('.texto-vacio');
+
+        // Elimina “Sin tickets” cuando llega una tarjeta.
+        if (textoVacio) {
+            textoVacio.remove();
+        }
+
+        // Mueve visualmente el ticket sin recargar la página.
+        zonaDestino.appendChild(ticket);
+
+        if (typeof actualizarTextoVacio === 'function') {
+            if (columnaOrigen) {
+                actualizarTextoVacio(columnaOrigen);
+            }
+
+            actualizarTextoVacio(columnaDestino);
+        }
+    };
+
+    socketTickets.onerror = function (error) {
+        console.error('Error del WebSocket:', error);
+    };
+
+    socketTickets.onclose = function () {
+        console.log('WebSocket de tickets desconectado.');
+    };
+</script>
+
 {% endblock %}  
