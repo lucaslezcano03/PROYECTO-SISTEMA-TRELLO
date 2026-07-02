@@ -344,3 +344,7 @@ body {
     border-radius: 6px;
     cursor: pointer;
 }
+
+.ticket-kanban.arrastrando {
+    opacity: 0.5;
+}

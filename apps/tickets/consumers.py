@@ -46,6 +46,7 @@ class TicketConsumer(AsyncJsonWebsocketConsumer):
             'tipo': 'ticket_movido',
             'ticket_id': event['ticket_id'],
             'columna_id': event['columna_id'],
+            'posicion': event['posicion'],
             'nuevo_estado': event['nuevo_estado'],
             'movido_por': event['movido_por'],
         })
