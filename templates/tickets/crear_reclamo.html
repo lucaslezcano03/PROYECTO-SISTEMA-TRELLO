@@ -3,9 +3,12 @@
 {% block content %}
 
 <section class="formulario-reclamo">
-    <h2>Campaña de Reclamos Internet Hogar</h2>
+    <div class="encabezado-formulario">
+        <h2>Campaña de Reclamos Internet Hogar</h2>
+        <p>Completá los datos del cliente para generar un ticket técnico.</p>
+    </div>
 
-    <form method="post">
+    <form method="post" class="formulario-grid">
         {% csrf_token %}
 
         <div class="campo">
@@ -44,13 +47,17 @@
             {{ form.tipo_interaccion.errors }}
         </div>
 
-        <div class="campo">
+        <div class="campo campo-completo">
             {{ form.comentario.label_tag }}
             {{ form.comentario }}
             {{ form.comentario.errors }}
         </div>
 
-        <button type="submit">Enviar reclamo</button>
+        <div class="acciones-formulario">
+            <button type="submit" class="boton-principal">
+                Enviar reclamo
+            </button>
+        </div>
     </form>
 </section>
 
