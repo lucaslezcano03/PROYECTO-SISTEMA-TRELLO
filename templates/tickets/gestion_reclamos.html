@@ -364,4 +364,64 @@
     };
 </script>
 
+<script>
+    /*
+    Verifica si aparecieron nuevos tickets en el tablero.
+    No reemplaza al WebSocket de drag and drop.
+    Solo evita tener que presionar F5 cuando se carga un reclamo nuevo.
+    */
+
+    function obtenerFirmaTicketsVisibles() {
+        return Array.from(
+            document.querySelectorAll('.ticket-kanban')
+        )
+        .map(ticket => ticket.dataset.ticketId)
+        .sort()
+        .join(',');
+    }
+
+    function obtenerFirmaTicketsApi(tickets) {
+        return tickets
+            .map(ticket => String(ticket.id))
+            .sort()
+            .join(',');
+    }
+
+    let firmaTicketsActual = obtenerFirmaTicketsVisibles();
+
+    function verificarNuevosTickets() {
+        fetch('/api/tickets/', {
+            method: 'GET',
+            credentials: 'same-origin'
+        })
+        .then(respuesta => {
+            if (!respuesta.ok) {
+                return null;
+            }
+
+            return respuesta.json();
+        })
+        .then(datos => {
+            if (!datos || !datos.ok) {
+                return;
+            }
+
+            const firmaApi = obtenerFirmaTicketsApi(datos.tickets || []);
+
+            if (firmaApi !== firmaTicketsActual) {
+                console.log('Se detectaron cambios en tickets. Actualizando tablero...');
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1200);
+            }
+        })
+        .catch(error => {
+            console.log('No se pudo verificar cambios de tickets:', error);
+        });
+    }
+
+    setInterval(verificarNuevosTickets, 8000);
+</script>
+
 {% endblock %}  
