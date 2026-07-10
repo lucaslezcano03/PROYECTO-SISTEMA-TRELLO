@@ -40,7 +40,7 @@
 </section>
 
 <script>
-    // Obtiene el token CSRF para que Django acepte peticiones POST desde JavaScript.
+    // Obtiene el token CSRF necesario para las peticiones POST.
     function obtenerCookie(nombre) {
         let valorCookie = null;
 
@@ -50,8 +50,10 @@
             for (let cookie of cookies) {
                 cookie = cookie.trim();
 
-                if (cookie.substring(0, nombre.length + 1) === (nombre + '=')) {
-                    valorCookie = decodeURIComponent(cookie.substring(nombre.length + 1));
+                if (cookie.startsWith(nombre + '=')) {
+                    valorCookie = decodeURIComponent(
+                        cookie.substring(nombre.length + 1)
+                    );
                     break;
                 }
             }
@@ -62,12 +64,13 @@
 
     const csrfToken = obtenerCookie('csrftoken');
 
-    // Guarda temporalmente la tarjeta que el usuario está arrastrando.
     let ticketArrastrado = null;
-    let columnaOrigen = null;
+    let zonaOrigen = null;
+    let posicionOrigen = null;
+
 
     function actualizarTextoVacio(columna) {
-        // Muestra u oculta el texto "Sin tickets" según haya tarjetas o no.
+        // Muestra "Sin tickets" únicamente cuando la columna está vacía.
         const zonaTickets = columna.querySelector('.zona-tickets');
         const tickets = zonaTickets.querySelectorAll('.ticket-kanban');
         let textoVacio = zonaTickets.querySelector('.texto-vacio');
@@ -79,37 +82,137 @@
                 textoVacio.textContent = 'Sin tickets';
                 zonaTickets.appendChild(textoVacio);
             }
-        } else {
-            if (textoVacio) {
-                textoVacio.remove();
-            }
+        } else if (textoVacio) {
+            textoVacio.remove();
         }
     }
 
+
+    function obtenerTarjetaSiguiente(zonaTickets, posicionMouseY) {
+        /*
+        Busca la tarjeta delante de la cual debe colocarse
+        el ticket que se está arrastrando.
+        */
+        const tarjetas = [
+            ...zonaTickets.querySelectorAll(
+                '.ticket-kanban:not(.arrastrando)'
+            )
+        ];
+
+        return tarjetas.reduce(
+            (resultado, tarjeta) => {
+                const caja = tarjeta.getBoundingClientRect();
+
+                const distancia = (
+                    posicionMouseY -
+                    caja.top -
+                    caja.height / 2
+                );
+
+                if (
+                    distancia < 0 &&
+                    distancia > resultado.distancia
+                ) {
+                    return {
+                        distancia: distancia,
+                        elemento: tarjeta
+                    };
+                }
+
+                return resultado;
+            },
+            {
+                distancia: Number.NEGATIVE_INFINITY,
+                elemento: null
+            }
+        ).elemento;
+    }
+
+
     document.querySelectorAll('.ticket-kanban').forEach(ticket => {
         ticket.addEventListener('dragstart', () => {
-            // Guarda el ticket y la columna desde donde salió.
             ticketArrastrado = ticket;
-            columnaOrigen = ticket.closest('.columna-kanban');
+            zonaOrigen = ticket.parentElement;
+
+            const ticketsOrigen = [
+                ...zonaOrigen.querySelectorAll('.ticket-kanban')
+            ];
+
+            posicionOrigen = ticketsOrigen.indexOf(ticket);
+
+            // La clase permite ignorar temporalmente la tarjeta al ordenar.
+            ticket.classList.add('arrastrando');
+        });
+
+        ticket.addEventListener('dragend', () => {
+            ticket.classList.remove('arrastrando');
         });
     });
 
-    document.querySelectorAll('.columna-kanban').forEach(columnaDestino => {
-        columnaDestino.addEventListener('dragover', event => {
-            event.preventDefault();
-        });
 
-        columnaDestino.addEventListener('drop', () => {
+    document.querySelectorAll('.columna-kanban').forEach(columna => {
+        const zonaTickets = columna.querySelector('.zona-tickets');
+
+        columna.addEventListener('dragover', event => {
+            event.preventDefault();
+
             if (!ticketArrastrado) {
                 return;
             }
 
-            const ticketId = ticketArrastrado.dataset.ticketId;
+            const textoVacio = zonaTickets.querySelector('.texto-vacio');
+
+            if (textoVacio) {
+                textoVacio.remove();
+            }
+
+            const tarjetaSiguiente = obtenerTarjetaSiguiente(
+                zonaTickets,
+                event.clientY
+            );
+
+            /*
+            Mueve temporalmente la tarjeta en el HTML.
+            Todavía no guarda nada en la base de datos.
+            */
+            if (tarjetaSiguiente) {
+                zonaTickets.insertBefore(
+                    ticketArrastrado,
+                    tarjetaSiguiente
+                );
+            } else {
+                zonaTickets.appendChild(ticketArrastrado);
+            }
+        });
+
+
+        columna.addEventListener('drop', event => {
+            event.preventDefault();
+
+            if (!ticketArrastrado) {
+                return;
+            }
+
+            const ticketMovido = ticketArrastrado;
+            const columnaOrigen = zonaOrigen.closest('.columna-kanban');
+            const columnaDestino = columna;
+
+            const ticketId = ticketMovido.dataset.ticketId;
             const columnaId = columnaDestino.dataset.columnaId;
-            const zonaDestino = columnaDestino.querySelector('.zona-tickets');
+
+            /*
+            Ahora la tarjeta ya está dentro de la zona destino,
+            por eso indexOf devuelve 0, 1, 2... y nunca -1.
+            */
+            const ticketsDestino = [
+                ...zonaTickets.querySelectorAll('.ticket-kanban')
+            ];
+
+            const nuevaPosicion = ticketsDestino.indexOf(ticketMovido);
 
             const datos = new FormData();
             datos.append('columna_id', columnaId);
+            datos.append('posicion', nuevaPosicion);
 
             fetch(`/tickets/${ticketId}/mover/`, {
                 method: 'POST',
@@ -121,40 +224,62 @@
             .then(response => {
                 if (!response.ok) {
                     return response.json().then(data => {
-                        throw new Error(data.error || 'Error al mover el ticket.');
+                        throw new Error(
+                            data.error || 'No se pudo mover el ticket.'
+                        );
                     });
                 }
 
                 return response.json();
             })
             .then(data => {
-                if (data.ok) {
-                    // Borra el texto "Sin tickets" de la columna destino si existe.
-                    const textoVacioDestino = zonaDestino.querySelector('.texto-vacio');
-
-                    if (textoVacioDestino) {
-                        textoVacioDestino.remove();
-                    }
-
-                    // Mueve la tarjeta visualmente.
-                    zonaDestino.appendChild(ticketArrastrado);
-
-                    // Actualiza el texto vacío en origen y destino.
-                    if (columnaOrigen) {
-                        actualizarTextoVacio(columnaOrigen);
-                    }
-
-                    actualizarTextoVacio(columnaDestino);
-
-                    ticketArrastrado = null;
-                    columnaOrigen = null;
-                } else {
-                    alert(data.error || 'No se pudo mover el ticket.');
+                if (!data.ok) {
+                    throw new Error(
+                        data.error || 'No se pudo guardar el movimiento.'
+                    );
                 }
+
+                actualizarTextoVacio(columnaOrigen);
+                actualizarTextoVacio(columnaDestino);
+
+                ticketMovido.classList.remove('arrastrando');
+
+                ticketArrastrado = null;
+                zonaOrigen = null;
+                posicionOrigen = null;
             })
             .catch(error => {
-                console.error('Detalle del error:', error);
-                alert('No se pudo mover el ticket.');
+                console.error('Error al mover ticket:', error);
+
+                /*
+                Si el backend rechaza el movimiento,
+                devuelve la tarjeta a su lugar anterior.
+                */
+                const tarjetasOrigen = [
+                    ...zonaOrigen.querySelectorAll('.ticket-kanban')
+                ];
+
+                const referencia = tarjetasOrigen[posicionOrigen];
+
+                if (referencia) {
+                    zonaOrigen.insertBefore(
+                        ticketMovido,
+                        referencia
+                    );
+                } else {
+                    zonaOrigen.appendChild(ticketMovido);
+                }
+
+                actualizarTextoVacio(columnaOrigen);
+                actualizarTextoVacio(columnaDestino);
+
+                ticketMovido.classList.remove('arrastrando');
+
+                ticketArrastrado = null;
+                zonaOrigen = null;
+                posicionOrigen = null;
+
+                alert(error.message);
             });
         });
     });
@@ -209,7 +334,17 @@
         }
 
         // Mueve visualmente el ticket sin recargar la página.
-        zonaDestino.appendChild(ticket);
+        const otrasTarjetas = Array.from(
+            zonaDestino.querySelectorAll('.ticket-kanban')
+        ).filter(tarjeta => tarjeta !== ticket);
+
+        const tarjetaReferencia = otrasTarjetas[datos.posicion];
+
+        if (tarjetaReferencia) {
+            zonaDestino.insertBefore(ticket, tarjetaReferencia);
+        } else {
+            zonaDestino.appendChild(ticket);
+        }
 
         if (typeof actualizarTextoVacio === 'function') {
             if (columnaOrigen) {

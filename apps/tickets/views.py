@@ -1,28 +1,51 @@
+# Django
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
-from django.http import JsonResponse
+from django.db import transaction
+from django.db.models import F, Prefetch, Q
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
-from django.db.models import Prefetch
-from django.http import HttpResponseForbidden, JsonResponse
-from apps.users.permissions import puede_cargar_reclamos, puede_mover_ticket, puede_ver_ticket
+
+# Django Channels y WebSockets
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+# Django REST Framework
+from rest_framework import status
+from rest_framework.authentication import (
+    BasicAuthentication,
+    SessionAuthentication,
+)
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+# Aplicaciones del proyecto
 from apps.boards.models import BoardColumn
 from apps.notifications.services import crear_notificacion
 from apps.users.decorators import roles_permitidos
+from apps.users.permissions import (
+    puede_cargar_reclamos,
+    puede_mover_ticket,
+    puede_ver_ticket,
+)
 
-from .forms import GestionTicketForm, ReclamoClienteForm, TicketCommentForm
+# Archivos de la app tickets
+from .forms import (
+    GestionTicketForm,
+    ReclamoClienteForm,
+    TicketCommentForm,
+)
 from .models import Ticket
-from .services import buscar_tecnico_disponible, obtener_tablero_reclamos
-
-from django.db import transaction
-from rest_framework import status
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
+from .services import (
+    buscar_tecnico_disponible,
+    obtener_tablero_reclamos,
+)
 
 
 @login_required
@@ -161,8 +184,9 @@ def gestion_reclamos(request):
         'asignado_a',
         'columna'
     ).order_by(
-        'posicion',
-        '-fecha_creacion'
+    'posicion',
+    'fecha_creacion',
+    'id'
     )
 
     # Si el usuario es técnico, solo ve tickets asignados a él.
@@ -182,13 +206,44 @@ def gestion_reclamos(request):
         'columnas': columnas,
     })
 
+def normalizar_posiciones(columna):
+    """
+    Ordena los tickets de una columna y les asigna
+    posiciones consecutivas: 0, 1, 2, 3...
+    """
+    tickets = Ticket.objects.filter(
+        columna=columna
+    ).order_by(
+        'posicion',
+        'fecha_creacion',
+        'id'
+    )
+
+    for nueva_posicion, ticket in enumerate(tickets):
+        if ticket.posicion != nueva_posicion:
+            Ticket.objects.filter(
+                id=ticket.id
+            ).update(
+                posicion=nueva_posicion
+            )
+
 @require_POST
 @roles_permitidos('tecnico', 'supervisor', 'admin')
 def mover_ticket(request, ticket_id):
-    # Esta vista funciona como una API interna para mover tickets por drag & drop.
-    ticket = get_object_or_404(Ticket, id=ticket_id)
+    """
+    Mueve un ticket a otra columna y guarda
+    su posición exacta dentro de esa columna.
+    """
+    ticket = get_object_or_404(
+        Ticket.objects.select_related(
+            'columna',
+            'tablero',
+            'asignado_a'
+        ),
+        id=ticket_id
+    )
 
-    # Evita que un técnico mueva tickets que no tiene asignados.
+    # El técnico solo puede mover tickets asignados a él.
     if not puede_mover_ticket(request.user, ticket):
         return JsonResponse({
             'ok': False,
@@ -196,17 +251,28 @@ def mover_ticket(request, ticket_id):
         }, status=403)
 
     columna_id = request.POST.get('columna_id')
+    posicion_recibida = request.POST.get('posicion', 0)
 
-    # Valida que el frontend haya enviado la columna destino.
     if not columna_id:
         return JsonResponse({
             'ok': False,
             'error': 'No se recibió la columna destino.'
         }, status=400)
 
-    nueva_columna = get_object_or_404(BoardColumn, id=columna_id)
+    try:
+        nueva_posicion = max(0, int(posicion_recibida))
+    except (TypeError, ValueError):
+        return JsonResponse({
+            'ok': False,
+            'error': 'La posición recibida no es válida.'
+        }, status=400)
 
-    # Evita mover tickets a columnas de otro tablero.
+    nueva_columna = get_object_or_404(
+        BoardColumn,
+        id=columna_id
+    )
+
+    # Impide mover una tarjeta a una columna de otro tablero.
     if nueva_columna.tablero_id != ticket.tablero_id:
         return JsonResponse({
             'ok': False,
@@ -215,42 +281,110 @@ def mover_ticket(request, ticket_id):
 
     columna_anterior = ticket.columna
 
-    # Si el ticket se suelta en la misma columna, no se modifica nada.
-    if columna_anterior.id == nueva_columna.id:
-        return JsonResponse({
-            'ok': True,
-            'mensaje': 'El ticket ya estaba en esa columna.',
-            'nuevo_estado': nueva_columna.nombre
-        })
-
     with transaction.atomic():
-        # Actualiza el estado del ticket.
-        ticket.columna = nueva_columna
-        ticket.save()
+        # Corrige las posiciones existentes antes del movimiento.
+        normalizar_posiciones(columna_anterior)
 
-        # Guarda un seguimiento automático dentro del ticket.
-        ticket.comentarios.create(
-            usuario=request.user,
-            mensaje=f'Ticket movido de {columna_anterior.nombre} a {nueva_columna.nombre}.'
+        if nueva_columna.id != columna_anterior.id:
+            normalizar_posiciones(nueva_columna)
+
+        # Vuelve a consultar el ticket después de normalizar.
+        ticket = Ticket.objects.select_for_update().get(
+            id=ticket.id
         )
 
-        # Notifica al técnico asignado, si existe.
-        if ticket.asignado_a:
-            crear_notificacion(
-                ticket.asignado_a,
-                f'El ticket "{ticket.titulo}" fue movido a {nueva_columna.nombre}.'
+        posicion_anterior = ticket.posicion
+
+        cantidad_destino = Ticket.objects.filter(
+            columna=nueva_columna
+        ).exclude(
+            id=ticket.id
+        ).count()
+
+        # Evita guardar una posición mayor a la cantidad de tarjetas.
+        nueva_posicion = min(
+            nueva_posicion,
+            cantidad_destino
+        )
+
+        if columna_anterior.id == nueva_columna.id:
+            # Reordenamiento dentro de la misma columna.
+            if nueva_posicion < posicion_anterior:
+                Ticket.objects.filter(
+                    columna=nueva_columna,
+                    posicion__gte=nueva_posicion,
+                    posicion__lt=posicion_anterior
+                ).exclude(
+                    id=ticket.id
+                ).update(
+                    posicion=F('posicion') + 1
+                )
+
+            elif nueva_posicion > posicion_anterior:
+                Ticket.objects.filter(
+                    columna=nueva_columna,
+                    posicion__gt=posicion_anterior,
+                    posicion__lte=nueva_posicion
+                ).exclude(
+                    id=ticket.id
+                ).update(
+                    posicion=F('posicion') - 1
+                )
+
+        else:
+            # Cierra el espacio que deja en la columna anterior.
+            Ticket.objects.filter(
+                columna=columna_anterior,
+                posicion__gt=posicion_anterior
+            ).update(
+                posicion=F('posicion') - 1
             )
 
-        # Obtiene la capa de comunicación configurada en Channels.
+            # Abre espacio en la columna destino.
+            Ticket.objects.filter(
+                columna=nueva_columna,
+                posicion__gte=nueva_posicion
+            ).update(
+                posicion=F('posicion') + 1
+            )
+
+        ticket.columna = nueva_columna
+        ticket.posicion = nueva_posicion
+        ticket.save(
+            update_fields=[
+                'columna',
+                'posicion',
+                'fecha_actualizacion'
+            ]
+        )
+
+        # Solo registra seguimiento si realmente cambió de estado.
+        if columna_anterior.id != nueva_columna.id:
+            ticket.comentarios.create(
+                usuario=request.user,
+                mensaje=(
+                    f'Ticket movido de {columna_anterior.nombre} '
+                    f'a {nueva_columna.nombre}.'
+                )
+            )
+
+            if ticket.asignado_a:
+                crear_notificacion(
+                    ticket.asignado_a,
+                    f'El ticket "{ticket.titulo}" fue movido '
+                    f'a {nueva_columna.nombre}.'
+                )
+
+    # Envía el nuevo estado y posición mediante WebSocket.
     channel_layer = get_channel_layer()
 
-    # Informa en tiempo real a todos los navegadores conectados.
     async_to_sync(channel_layer.group_send)(
         'tablero_reclamos',
         {
             'type': 'ticket.movido',
             'ticket_id': ticket.id,
             'columna_id': nueva_columna.id,
+            'posicion': nueva_posicion,
             'nuevo_estado': nueva_columna.nombre,
             'movido_por': request.user.username,
         }
@@ -259,6 +393,8 @@ def mover_ticket(request, ticket_id):
     return JsonResponse({
         'ok': True,
         'ticket_id': ticket.id,
+        'columna_id': nueva_columna.id,
+        'posicion': nueva_posicion,
         'nuevo_estado': nueva_columna.nombre
     })
 
