@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="formulario-login">
+    <h2>Iniciar sesión</h2>
+
+    {% if form.errors %}
+        <p class="mensaje error">
+            Usuario o contraseña incorrectos.
+        </p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="campo">
+            <label for="id_username">Usuario</label>
+            {{ form.username }}
+        </div>
+
+        <div class="campo">
+            <label for="id_password">Contraseña</label>
+            {{ form.password }}
+        </div>
+
+        <button type="submit">Ingresar</button>
+    </form>
+
+    <p class="texto-centro">
+        ¿No tenés usuario?
+        <a href="{% url 'users:registro_empleado' %}">Registrarse como empleado</a>
+    </p>
+</section>
+
+{% endblock %}

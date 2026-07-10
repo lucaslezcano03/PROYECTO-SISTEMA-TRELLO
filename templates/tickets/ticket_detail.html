@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>{{ ticket.titulo }}</h2>
+
+    <p><strong>N° Contrato:</strong> {{ ticket.numero_contrato }}</p>
+    <p><strong>ID Cliente:</strong> {{ ticket.id_cliente }}</p>
+    <p><strong>Correo:</strong> {{ ticket.correo_cliente|default:"No cargado" }}</p>
+    <p><strong>Contacto principal:</strong> {{ ticket.contacto_principal }}</p>
+    <p><strong>Contacto secundario:</strong> {{ ticket.contacto_secundario|default:"No cargado" }}</p>
+    <p><strong>Interacción:</strong> {{ ticket.get_tipo_interaccion_display }}</p>
+    <p><strong>Comentario inicial:</strong> {{ ticket.detalle_reclamo }}</p>
+</section>
+
+<section class="bloque">
+    <h3>Gestión del ticket</h3>
+
+    <form method="post" class="formulario">
+        {% csrf_token %}
+
+        {{ gestion_form.as_p }}
+
+        <button type="submit" name="guardar_cambios">
+            Guardar cambios
+        </button>
+    </form>
+</section>
+
+<section class="bloque">
+    <h3>Seguimiento del ticket</h3>
+
+    {% for comentario in ticket.comentarios.all %}
+        <div class="comentario">
+            <p>{{ comentario.mensaje }}</p>
+            <small>
+                Registrado por {{ comentario.usuario.username }}
+                - {{ comentario.fecha_creacion }}
+            </small>
+        </div>
+    {% empty %}
+        <p>Este ticket todavía no tiene comentarios.</p>
+    {% endfor %}
+</section>
+
+<section class="bloque">
+    <h3>Agregar seguimiento</h3>
+
+    <form method="post" class="formulario">
+        {% csrf_token %}
+
+        {{ comentario_form.as_p }}
+
+        <button type="submit" name="agregar_comentario">
+            Agregar comentario
+        </button>
+    </form>
+</section>
+
+{% endblock %}

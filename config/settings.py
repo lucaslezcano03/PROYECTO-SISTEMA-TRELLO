@@ -25,18 +25,37 @@ SECRET_KEY = 'django-insecure-76$bpc!yik(q6jy@6s6cx=5t(r++nc!v)j#h(531rh8s)_4g!x
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+]
 
 
 # Application definition
 
+LOGIN_URL = '/admin/login/'
+
+STATIC_URL = 'static/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
 INSTALLED_APPS = [
+    # Daphne ejecuta Django mediante ASGI.
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'channels',
+    'apps.users',
+    'apps.boards',
+    'apps.tickets',
+    'apps.notifications',
 ]
 
 MIDDLEWARE = [
@@ -54,13 +73,15 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.notifications.context_processors.notificaciones_usuario',
+                'apps.users.context_processors.datos_usuario',
             ],
         },
     },
@@ -120,3 +141,33 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Ruta donde Django manda al usuario si intenta entrar sin iniciar sesión.
+LOGIN_URL = 'login'
+
+# Después del login, se redirige según el rol del usuario.
+LOGIN_REDIRECT_URL = 'users:inicio_por_rol'
+
+# Después del logout, vuelve al login.
+LOGOUT_REDIRECT_URL = 'login'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+# Indica cuál es la aplicación ASGI principal del proyecto.
+ASGI_APPLICATION = 'config.asgi.application'
+
+
+# Canal temporal para desarrollo local.
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}

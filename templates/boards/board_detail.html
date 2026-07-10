@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>{{ tablero.nombre }}</h2>
+    <p>{{ tablero.descripcion|default:"Sin descripción" }}</p>
+</section>
+
+<section class="tablero">
+    {% for columna in tablero.columnas.all %}
+        <div class="columna">
+            <h3>{{ columna.nombre }}</h3>
+
+            {% for ticket in columna.tickets.all %}
+                <div class="ticket">
+                    <h4>
+                        <a href="{% url 'tickets:ticket_detail' ticket.id %}">{{ ticket.titulo }}
+                        </a>
+                    </h4>
+                    <p><strong>Cliente:</strong> {{ ticket.cliente }}</p>
+                    <p><strong>Prioridad:</strong> {{ ticket.get_prioridad_display }}</p>
+
+                    {% if ticket.asignado_a %}
+                        <p><strong>Asignado a:</strong> {{ ticket.asignado_a.username }}</p>
+                    {% else %}
+                        <p><strong>Asignado a:</strong> Sin asignar</p>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <p class="texto-vacio">Sin tickets</p>
+            {% endfor %}
+        </div>
+    {% empty %}
+        <p>Este tablero todavía no tiene columnas.</p>
+    {% endfor %}
+</section>
+
+{% endblock %}

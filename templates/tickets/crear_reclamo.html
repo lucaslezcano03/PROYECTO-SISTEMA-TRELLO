@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="formulario-reclamo">
+    <div class="encabezado-formulario">
+        <h2>Campaña de Reclamos Internet Hogar</h2>
+        <p>Completá los datos del cliente para generar un ticket técnico.</p>
+    </div>
+
+    <form method="post" class="formulario-grid">
+        {% csrf_token %}
+
+        <div class="campo">
+            {{ form.numero_contrato.label_tag }}
+            {{ form.numero_contrato }}
+            {{ form.numero_contrato.errors }}
+        </div>
+
+        <div class="campo">
+            {{ form.id_cliente.label_tag }}
+            {{ form.id_cliente }}
+            {{ form.id_cliente.errors }}
+        </div>
+
+        <div class="campo">
+            {{ form.correo_cliente.label_tag }}
+            {{ form.correo_cliente }}
+            {{ form.correo_cliente.errors }}
+        </div>
+
+        <div class="campo">
+            {{ form.contacto_principal.label_tag }}
+            {{ form.contacto_principal }}
+            {{ form.contacto_principal.errors }}
+        </div>
+
+        <div class="campo">
+            {{ form.contacto_secundario.label_tag }}
+            {{ form.contacto_secundario }}
+            {{ form.contacto_secundario.errors }}
+        </div>
+
+        <div class="campo">
+            {{ form.tipo_interaccion.label_tag }}
+            {{ form.tipo_interaccion }}
+            {{ form.tipo_interaccion.errors }}
+        </div>
+
+        <div class="campo campo-completo">
+            {{ form.comentario.label_tag }}
+            {{ form.comentario }}
+            {{ form.comentario.errors }}
+        </div>
+
+        <div class="acciones-formulario">
+            <button type="submit" class="boton-principal">
+                Enviar reclamo
+            </button>
+        </div>
+    </form>
+</section>
+
+{% endblock %}

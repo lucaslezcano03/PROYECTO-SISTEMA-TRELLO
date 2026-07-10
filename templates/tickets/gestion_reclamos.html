@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<section class="bloque">
+    <h2>{{ tablero.nombre }}</h2>
+    <p>Arrastrá los tickets entre columnas para cambiar su estado.</p>
+</section>
+
+<section class="tablero-kanban">
+    {% for columna in columnas %}
+        <div class="columna-kanban" data-columna-id="{{ columna.id }}">
+            <h3>{{ columna.nombre }}</h3>
+
+            <div class="zona-tickets">
+                {% for ticket in columna.tickets.all %}
+                    <div class="ticket-kanban" draggable="true" data-ticket-id="{{ ticket.id }}">
+                        <h4>
+                            <a href="{% url 'tickets:ticket_detail' ticket.id %}">
+                                {{ ticket.titulo }}
+                            </a>
+                        </h4>
+
+                        <p><strong>Contrato:</strong> {{ ticket.numero_contrato }}</p>
+                        <p><strong>ID Cliente:</strong> {{ ticket.id_cliente }}</p>
+                        <p><strong>Prioridad:</strong> {{ ticket.get_prioridad_display }}</p>
+
+                        {% if ticket.asignado_a %}
+                            <p><strong>Técnico:</strong> {{ ticket.asignado_a.username }}</p>
+                        {% else %}
+                            <p><strong>Técnico:</strong> Sin asignar</p>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <p class="texto-vacio">Sin tickets</p>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</section>
+
+<script>
+    // Obtiene el token CSRF necesario para las peticiones POST.
+    function obtenerCookie(nombre) {
+        let valorCookie = null;
+
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+
+                if (cookie.startsWith(nombre + '=')) {
+                    valorCookie = decodeURIComponent(
+                        cookie.substring(nombre.length + 1)
+                    );
+                    break;
+                }
+            }
+        }
+
+        return valorCookie;
+    }
+
+    const csrfToken = obtenerCookie('csrftoken');
+
+    let ticketArrastrado = null;
+    let zonaOrigen = null;
+    let posicionOrigen = null;
+
+
+    function actualizarTextoVacio(columna) {
+        // Muestra "Sin tickets" únicamente cuando la columna está vacía.
+        const zonaTickets = columna.querySelector('.zona-tickets');
+        const tickets = zonaTickets.querySelectorAll('.ticket-kanban');
+        let textoVacio = zonaTickets.querySelector('.texto-vacio');
+
+        if (tickets.length === 0) {
+            if (!textoVacio) {
+                textoVacio = document.createElement('p');
+                textoVacio.className = 'texto-vacio';
+                textoVacio.textContent = 'Sin tickets';
+                zonaTickets.appendChild(textoVacio);
+            }
+        } else if (textoVacio) {
+            textoVacio.remove();
+        }
+    }
+
+
+    function obtenerTarjetaSiguiente(zonaTickets, posicionMouseY) {
+        /*
+        Busca la tarjeta delante de la cual debe colocarse
+        el ticket que se está arrastrando.
+        */
+        const tarjetas = [
+            ...zonaTickets.querySelectorAll(
+                '.ticket-kanban:not(.arrastrando)'
+            )
+        ];
+
+        return tarjetas.reduce(
+            (resultado, tarjeta) => {
+                const caja = tarjeta.getBoundingClientRect();
+
+                const distancia = (
+                    posicionMouseY -
+                    caja.top -
+                    caja.height / 2
+                );
+
+                if (
+                    distancia < 0 &&
+                    distancia > resultado.distancia
+                ) {
+                    return {
+                        distancia: distancia,
+                        elemento: tarjeta
+                    };
+                }
+
+                return resultado;
+            },
+            {
+                distancia: Number.NEGATIVE_INFINITY,
+                elemento: null
+            }
+        ).elemento;
+    }
+
+
+    document.querySelectorAll('.ticket-kanban').forEach(ticket => {
+        ticket.addEventListener('dragstart', () => {
+            ticketArrastrado = ticket;
+            zonaOrigen = ticket.parentElement;
+
+            const ticketsOrigen = [
+                ...zonaOrigen.querySelectorAll('.ticket-kanban')
+            ];
+
+            posicionOrigen = ticketsOrigen.indexOf(ticket);
+
+            // La clase permite ignorar temporalmente la tarjeta al ordenar.
+            ticket.classList.add('arrastrando');
+        });
+
+        ticket.addEventListener('dragend', () => {
+            ticket.classList.remove('arrastrando');
+        });
+    });
+
+
+    document.querySelectorAll('.columna-kanban').forEach(columna => {
+        const zonaTickets = columna.querySelector('.zona-tickets');
+
+        columna.addEventListener('dragover', event => {
+            event.preventDefault();
+
+            if (!ticketArrastrado) {
+                return;
+            }
+
+            const textoVacio = zonaTickets.querySelector('.texto-vacio');
+
+            if (textoVacio) {
+                textoVacio.remove();
+            }
+
+            const tarjetaSiguiente = obtenerTarjetaSiguiente(
+                zonaTickets,
+                event.clientY
+            );
+
+            /*
+            Mueve temporalmente la tarjeta en el HTML.
+            Todavía no guarda nada en la base de datos.
+            */
+            if (tarjetaSiguiente) {
+                zonaTickets.insertBefore(
+                    ticketArrastrado,
+                    tarjetaSiguiente
+                );
+            } else {
+                zonaTickets.appendChild(ticketArrastrado);
+            }
+        });
+
+
+        columna.addEventListener('drop', event => {
+            event.preventDefault();
+
+            if (!ticketArrastrado) {
+                return;
+            }
+
+            const ticketMovido = ticketArrastrado;
+            const columnaOrigen = zonaOrigen.closest('.columna-kanban');
+            const columnaDestino = columna;
+
+            const ticketId = ticketMovido.dataset.ticketId;
+            const columnaId = columnaDestino.dataset.columnaId;
+
+            /*
+            Ahora la tarjeta ya está dentro de la zona destino,
+            por eso indexOf devuelve 0, 1, 2... y nunca -1.
+            */
+            const ticketsDestino = [
+                ...zonaTickets.querySelectorAll('.ticket-kanban')
+            ];
+
+            const nuevaPosicion = ticketsDestino.indexOf(ticketMovido);
+
+            const datos = new FormData();
+            datos.append('columna_id', columnaId);
+            datos.append('posicion', nuevaPosicion);
+
+            fetch(`/tickets/${ticketId}/mover/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                body: datos
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(
+                            data.error || 'No se pudo mover el ticket.'
+                        );
+                    });
+                }
+
+                return response.json();
+            })
+            .then(data => {
+                if (!data.ok) {
+                    throw new Error(
+                        data.error || 'No se pudo guardar el movimiento.'
+                    );
+                }
+
+                actualizarTextoVacio(columnaOrigen);
+                actualizarTextoVacio(columnaDestino);
+
+                ticketMovido.classList.remove('arrastrando');
+
+                ticketArrastrado = null;
+                zonaOrigen = null;
+                posicionOrigen = null;
+            })
+            .catch(error => {
+                console.error('Error al mover ticket:', error);
+
+                /*
+                Si el backend rechaza el movimiento,
+                devuelve la tarjeta a su lugar anterior.
+                */
+                const tarjetasOrigen = [
+                    ...zonaOrigen.querySelectorAll('.ticket-kanban')
+                ];
+
+                const referencia = tarjetasOrigen[posicionOrigen];
+
+                if (referencia) {
+                    zonaOrigen.insertBefore(
+                        ticketMovido,
+                        referencia
+                    );
+                } else {
+                    zonaOrigen.appendChild(ticketMovido);
+                }
+
+                actualizarTextoVacio(columnaOrigen);
+                actualizarTextoVacio(columnaDestino);
+
+                ticketMovido.classList.remove('arrastrando');
+
+                ticketArrastrado = null;
+                zonaOrigen = null;
+                posicionOrigen = null;
+
+                alert(error.message);
+            });
+        });
+    });
+</script>
+
+<script>
+    // Utiliza wss en HTTPS y ws durante el desarrollo local.
+    const protocoloWebSocket =
+        window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+    const socketTickets = new WebSocket(
+        `${protocoloWebSocket}://${window.location.host}/ws/tickets/`
+    );
+
+    socketTickets.onopen = function () {
+        console.log('WebSocket de tickets conectado.');
+    };
+
+    socketTickets.onmessage = function (evento) {
+        const datos = JSON.parse(evento.data);
+
+        if (datos.tipo !== 'ticket_movido') {
+            return;
+        }
+
+        // Busca la tarjeta que fue modificada.
+        const ticket = document.querySelector(
+            `.ticket-kanban[data-ticket-id="${datos.ticket_id}"]`
+        );
+
+        // Un técnico podría no tener permiso para visualizar ese ticket.
+        if (!ticket) {
+            return;
+        }
+
+        const columnaOrigen = ticket.closest('.columna-kanban');
+
+        const columnaDestino = document.querySelector(
+            `.columna-kanban[data-columna-id="${datos.columna_id}"]`
+        );
+
+        if (!columnaDestino) {
+            return;
+        }
+
+        const zonaDestino = columnaDestino.querySelector('.zona-tickets');
+        const textoVacio = zonaDestino.querySelector('.texto-vacio');
+
+        // Elimina “Sin tickets” cuando llega una tarjeta.
+        if (textoVacio) {
+            textoVacio.remove();
+        }
+
+        // Mueve visualmente el ticket sin recargar la página.
+        const otrasTarjetas = Array.from(
+            zonaDestino.querySelectorAll('.ticket-kanban')
+        ).filter(tarjeta => tarjeta !== ticket);
+
+        const tarjetaReferencia = otrasTarjetas[datos.posicion];
+
+        if (tarjetaReferencia) {
+            zonaDestino.insertBefore(ticket, tarjetaReferencia);
+        } else {
+            zonaDestino.appendChild(ticket);
+        }
+
+        if (typeof actualizarTextoVacio === 'function') {
+            if (columnaOrigen) {
+                actualizarTextoVacio(columnaOrigen);
+            }
+
+            actualizarTextoVacio(columnaDestino);
+        }
+    };
+
+    socketTickets.onerror = function (error) {
+        console.error('Error del WebSocket:', error);
+    };
+
+    socketTickets.onclose = function () {
+        console.log('WebSocket de tickets desconectado.');
+    };
+</script>
+
+{% endblock %}  
