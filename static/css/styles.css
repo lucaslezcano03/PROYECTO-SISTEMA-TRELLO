@@ -348,3 +348,116 @@ body {
 .ticket-kanban.arrastrando {
     opacity: 0.5;
 }
+.barra-superior {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 14px 24px;
+    background: #1f2937;
+    color: white;
+}
+
+.barra-superior h1 {
+    margin: 0;
+    font-size: 22px;
+    white-space: nowrap;
+}
+
+.menu-superior {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+}
+
+.nav-enlaces {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.nav-enlaces a {
+    color: white;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.nav-enlaces a:hover {
+    text-decoration: underline;
+}
+
+.nav-sesion {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.usuario-pill {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    height: 38px;
+    padding: 0 12px 0 6px;
+    border-radius: 999px;
+    background: #374151;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: default;
+    user-select: none;
+}
+
+.usuario-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    background: #6b7280;
+    color: white;
+}
+
+.usuario-texto {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.05;
+}
+
+.usuario-nombre {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+}
+
+.usuario-rol {
+    font-size: 11px;
+    font-weight: 500;
+    color: #d1d5db;
+    margin-top: 2px;
+}
+
+.form-logout {
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.boton-logout {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: transparent;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.boton-logout:hover {
+    background: rgba(255, 255, 255, 0.12);
+}

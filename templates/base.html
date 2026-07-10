@@ -12,38 +12,68 @@
 <header class="barra-superior">
     <h1>Sistema de Tickets Técnicos</h1>
 
-<nav>
+<nav class="menu-superior">
     {% if request.user.is_authenticated %}
 
-        {% if es_tecnico or es_supervisor or es_admin_sistema %}
-            <a href="{% url 'tickets:gestion_reclamos' %}">Gestión reclamos</a>
-        {% endif %}
+        <div class="nav-enlaces">
+            {% if es_tecnico or es_supervisor or es_admin_sistema %}
+                <a href="{% url 'tickets:gestion_reclamos' %}">Gestión reclamos</a>
+            {% endif %}
 
-        {% if es_empleado or es_tecnico or es_supervisor or es_admin_sistema %}
-            <a href="{% url 'tickets:crear_reclamo_internet' %}">Cargar reclamo</a>
-        {% endif %}
+            {% if es_empleado or es_tecnico or es_supervisor or es_admin_sistema %}
+                <a href="{% url 'tickets:crear_reclamo_internet' %}">Cargar reclamo</a>
+            {% endif %}
 
-        {% if es_tecnico or es_supervisor or es_admin_sistema %}
-            <a href="{% url 'notifications:notification_list' %}">
-                Notificaciones
-                {% if notificaciones_no_leidas > 0 %}
-                    ({{ notificaciones_no_leidas }})
+            {% if es_tecnico or es_supervisor or es_admin_sistema %}
+                <a href="{% url 'notifications:notification_list' %}">
+                    Notificaciones
+                    {% if notificaciones_no_leidas > 0 %}
+                        ({{ notificaciones_no_leidas }})
+                    {% endif %}
+                </a>
+            {% endif %}
+
+            {% if request.user.is_staff %}
+                <a href="/admin/">Admin</a>
+            {% endif %}
+        </div>
+
+        <div class="nav-sesion">
+    <div class="usuario-pill" title="Sesión actual">
+        <span class="usuario-avatar">
+            {{ request.user.username|slice:":1"|upper }}
+        </span>
+
+        <div class="usuario-texto">
+            <span class="usuario-nombre">{{ request.user.username }}</span>
+
+            <span class="usuario-rol">
+                {% if request.user.is_superuser %}
+                    Administrador
+                {% elif request.user.perfil %}
+                    {{ request.user.perfil.get_rol_display }}
+                {% elif request.user.is_staff %}
+                    Staff
+                {% else %}
+                    Sin rol
                 {% endif %}
-            </a>
-        {% endif %}
-
-        {% if request.user.is_staff %}
-            <a href="/admin/">Admin</a>
-        {% endif %}
+            </span>
+        </div>
+    </div>
 
         <form method="post" action="{% url 'logout' %}" class="form-logout">
             {% csrf_token %}
-            <button type="submit">Cerrar sesión</button>
+            <button type="submit" class="boton-logout">
+                Cerrar sesión
+            </button>
         </form>
+    </div>
 
     {% else %}
-        <a href="{% url 'login' %}">Iniciar sesión</a>
-        <a href="{% url 'users:registro_empleado' %}">Registrarse</a>
+        <div class="nav-enlaces">
+            <a href="{% url 'login' %}">Iniciar sesión</a>
+            <a href="{% url 'users:registro_empleado' %}">Registrarse</a>
+        </div>
     {% endif %}
 </nav>
 
