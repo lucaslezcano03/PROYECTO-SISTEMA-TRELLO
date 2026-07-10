@@ -1,142 +1,313 @@
-# \# Sistema de Gestión de Tickets Técnicos
+# Sistema de Gestión de Tickets Técnicos
 
-# 
+Proyecto desarrollado para la materia **Programación**.
 
-# Proyecto desarrollado para la materia de Programación.
+El sistema permite gestionar reclamos técnicos mediante un tablero tipo **Trello/Kanban**, orientado a reclamos de **Internet Hogar**.  
+Permite cargar tickets, asignarlos a técnicos, moverlos entre estados, mantener posiciones ordenadas y actualizar cambios en tiempo real mediante WebSockets.
 
-# 
+---
 
-# El sistema permite gestionar reclamos técnicos mediante un tablero tipo Trello/Kanban. Está orientado a reclamos de Internet Hogar, permitiendo cargar tickets, asignarlos a técnicos, moverlos entre estados y actualizar los cambios en tiempo real.
+## Integrantes
 
-# 
+- Lucas Lezcano
+- Ximena Caceres
+
+---
+
+## Objetivo del proyecto
+
+El objetivo principal del sistema es organizar y administrar reclamos técnicos de forma clara, permitiendo que los usuarios trabajen según su rol dentro del sistema.
 
-# \## Integrantes
+El proyecto está inspirado en el funcionamiento de herramientas tipo Trello, adaptado a un contexto de soporte técnico.
 
-# 
+---
 
-# \- Lucas Lezcano
+## Funcionalidades principales
 
-# \- Ximena Caceres
+- Inicio de sesión y registro de usuarios.
+- Roles de usuario: empleado, técnico, supervisor y administrador.
+- Carga de reclamos técnicos desde formulario web.
+- Asignación automática de tickets al técnico con menor cantidad de casos asignados.
+- Reasignación de tickets por parte del supervisor o administrador.
+- Tablero Kanban con columnas de estado.
+- Movimiento de tickets mediante drag and drop.
+- Guardado de posiciones ordenadas dentro de cada columna.
+- Actualización en tiempo real mediante WebSockets con Django Channels.
+- Notificaciones por asignación y cambios de estado.
+- API REST para consultar tickets y verificar el estado del sistema.
+- Permisos según el rol del usuario.
 
-# 
+---
 
-# \## Funcionalidades principales
+## Roles del sistema
 
-# 
+### Empleado
 
-# \- Inicio de sesión y registro de usuarios.
+- Puede cargar reclamos.
+- No puede acceder a la gestión general de reclamos.
+- No puede mover tickets ni reasignar técnicos.
 
-# \- Roles de usuario: empleado, técnico, supervisor y administrador.
+### Técnico
 
-# \- Carga de reclamos técnicos desde formulario web.
+- Puede ver los tickets asignados a él.
+- Puede mover sus tickets entre columnas.
+- Puede ver sus notificaciones.
+- No puede reasignar tickets.
 
-# \- Asignación automática de tickets al técnico con menor cantidad de casos asignados.
+### Supervisor
 
-# \- Reasignación de tickets por parte del supervisor o administrador.
+- Puede ver todos los tickets.
+- Puede mover tickets entre columnas.
+- Puede reasignar técnicos.
+- Puede ver notificaciones.
 
-# \- Tablero Kanban con columnas de estado.
+### Administrador
 
-# \- Movimiento de tickets mediante drag and drop.
+- Tiene acceso completo al sistema.
+- Puede acceder al panel de administración de Django.
+- Puede administrar usuarios, tickets, tableros y demás datos del sistema.
 
-# \- Guardado de posiciones ordenadas dentro de cada columna.
+---
 
-# \- Actualización en tiempo real mediante WebSockets con Django Channels.
+## Tecnologías utilizadas
 
-# \- Notificaciones por asignación y cambios de estado.
+- Python
+- Django
+- Django REST Framework
+- Django Channels
+- WebSockets
+- SQLite
+- HTML
+- CSS
+- JavaScript
+- Git
+- GitHub
 
-# \- API REST para consultar tickets y verificar el estado del sistema.
+---
 
-# \- Permisos según rol de usuario.
+## Estructura principal del proyecto
 
-# 
+```text
+PROYECTO-SISTEMA-TRELLO/
+│
+├── apps/
+│   ├── users/
+│   ├── boards/
+│   ├── tickets/
+│   └── notifications/
+│
+├── config/
+│   ├── settings.py
+│   ├── urls.py
+│   └── asgi.py
+│
+├── templates/
+│   ├── tickets/
+│   ├── notifications/
+│   └── registration/
+│
+├── static/
+│   └── css/
+│
+├── manage.py
+├── requirements.txt
+└── README.md
+```
 
-# \## Roles del sistema
+---
 
-# 
+## Instalación y ejecución
 
-# \### Empleado
+Clonar el repositorio:
 
-# 
+```cmd
+git clone git@github.com:lucaslezcano03/PROYECTO-SISTEMA-TRELLO.git
+cd PROYECTO-SISTEMA-TRELLO
+```
 
-# \- Puede cargar reclamos.
+Crear entorno virtual:
 
-# \- No puede acceder a la gestión de reclamos.
+```cmd
+python -m venv venv
+```
 
-# 
+Activar entorno virtual en Windows:
 
-# \### Técnico
+```cmd
+venv\Scripts\activate
+```
 
-# 
+Instalar dependencias:
 
-# \- Puede ver los tickets asignados a él.
+```cmd
+pip install -r requirements.txt
+```
 
-# \- Puede mover tickets entre columnas.
+Aplicar migraciones:
 
-# \- No puede reasignar tickets.
+```cmd
+python manage.py migrate
+```
 
-# 
+Crear superusuario:
 
-# \### Supervisor
+```cmd
+python manage.py createsuperuser
+```
 
-# 
+Ejecutar el servidor:
 
-# \- Puede ver todos los tickets.
+```cmd
+python manage.py runserver
+```
 
-# \- Puede mover tickets.
+Abrir en el navegador:
 
-# \- Puede reasignar técnicos.
+```text
+http://127.0.0.1:8000/
+```
 
-# \- Puede ver notificaciones.
+---
 
-# 
+## Rutas principales
 
-# \### Administrador
+```text
+/accounts/login/              Inicio de sesión
+/accounts/register/           Registro de usuarios
+/tickets/nuevo-reclamo/       Carga de reclamos
+/tickets/gestion/             Tablero de gestión
+/notificaciones/              Notificaciones
+/admin/                       Panel administrativo
+```
 
-# 
+---
 
-# \- Tiene acceso completo al sistema.
+## API REST
 
-# \- Puede acceder al panel de administración de Django.
+La API fue implementada con **Django REST Framework** y requiere autenticación.
 
-# 
+### Estado del sistema
 
-# \## Tecnologías utilizadas
+```text
+GET /api/estado/
+```
 
-# 
+Devuelve información general del sistema, usuario autenticado y rol.
 
-# \- Python
+Ejemplo de respuesta:
 
-# \- Django
+```json
+{
+    "ok": true,
+    "sistema": "Sistema de Tickets Técnicos",
+    "api": "activa",
+    "usuario": "lucas",
+    "rol": "admin",
+    "mensaje": "Backend funcionando correctamente."
+}
+```
 
-# \- Django REST Framework
+### Listado de tickets
 
-# \- Django Channels
+```text
+GET /api/tickets/
+```
 
-# \- WebSockets
+Devuelve los tickets disponibles según el rol del usuario.
 
-# \- SQLite
+Ejemplo de respuesta:
 
-# \- HTML
+```json
+{
+    "ok": true,
+    "cantidad": 3,
+    "tickets": []
+}
+```
 
-# \- CSS
+### Crear ticket desde API
 
-# \- JavaScript
+```text
+POST /api/tickets/
+```
 
-# \- Git y GitHub
+Ejemplo de JSON:
 
-# 
+```json
+{
+    "numero_contrato": "99887766",
+    "id_cliente": "11223344",
+    "correo_cliente": "cliente.demo@gmail.com",
+    "contacto_principal": "0981123456",
+    "contacto_secundario": "0971123456",
+    "tipo_interaccion": "reclamo",
+    "comentario": "Prueba de carga de reclamo desde la API."
+}
+```
 
-# \## Instalación y ejecución
+---
 
-# 
+## WebSockets
 
-# Clonar el repositorio:
+El sistema utiliza **Django Channels** para actualizar el tablero en tiempo real.
 
-# 
+Ruta WebSocket:
 
-# ```bash
+```text
+ws://127.0.0.1:8000/ws/tickets/
+```
 
-# git clone git@github-lucas:lucaslezcano03/PROYECTO-SISTEMA-TRELLO.git
+Cuando un ticket se mueve en el tablero, se envía un evento como:
 
-# cd PROYECTO-SISTEMA-TRELLO
+```json
+{
+    "tipo": "ticket_movido",
+    "ticket_id": 3,
+    "columna_id": 2,
+    "posicion": 0,
+    "nuevo_estado": "En seguimiento",
+    "movido_por": "lucas"
+}
+```
 
+Esto permite que otros usuarios conectados vean el movimiento del ticket sin actualizar manualmente la página.
+
+---
+
+## Pruebas realizadas
+
+- Inicio de sesión por roles.
+- Carga de reclamos.
+- Asignación automática a técnicos.
+- Reasignación de tickets.
+- Movimiento de tickets mediante drag and drop.
+- Guardado de posición de tickets.
+- Actualización en tiempo real con WebSockets.
+- Notificaciones.
+- API desde navegador, consola y terminal.
+- Validación de permisos por rol.
+
+---
+
+## Estado del proyecto
+
+El sistema se encuentra funcional para la gestión de reclamos técnicos.
+
+Cumple con las funcionalidades principales solicitadas:
+
+- usuarios;
+- tableros;
+- listas o columnas;
+- tarjetas o tickets;
+- permisos por usuario;
+- drag and drop con posiciones ordenadas;
+- WebSockets con Django Channels;
+- asignación de tickets;
+- notificaciones;
+- API REST.
+
+---
+
+## Repositorio
+
+Proyecto desarrollado y versionado con Git y GitHub mediante ramas de trabajo por integrante.
